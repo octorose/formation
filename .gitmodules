@@ -1,0 +1,6 @@
+[submodule "formation-frontend"]
+	path = formation-frontend
+	url = https://github.com/octorose/formation-frontend.git
+[submodule "formationBackend"]
+	path = formationBackend
+	url = https://github.com/octorose/formationBackend.git
