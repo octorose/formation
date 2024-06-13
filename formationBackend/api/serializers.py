@@ -5,6 +5,7 @@ from django.contrib.auth import authenticate
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework import serializers
 from .models import Agent
+from datetime import datetime
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     username_field = 'username'
@@ -131,3 +132,12 @@ class SuperviseurSerializer(serializers.ModelSerializer):
         agent = AgentSerializer.create(AgentSerializer(), validated_data=agent_data)
         superviseur = Superviseur.objects.create(agent=agent, **validated_data)
         return superviseur
+class DateTruncatedMonthField(serializers.ReadOnlyField):
+    def to_representation(self, value):
+        if isinstance(value, datetime):
+            return value.date()
+        return value
+
+class PersonnelCountSerializer(serializers.Serializer):
+    month = DateTruncatedMonthField()
+    count = serializers.IntegerField()
