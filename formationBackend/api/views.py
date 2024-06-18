@@ -10,8 +10,10 @@ from .serializers import CustomTokenObtainPairSerializer
 from .models import Agent, RH, ResponsableFormation, ResponsableEcoleFormation, Formateur, Superviseur, Personnel, Ligne
 from django.contrib.auth.hashers import make_password
 
+
 from .serializers import ResponsableFormationEcoleSerializer,FormateurSerializer
 from django.http.response import Http404
+
 
 class RegisterView(APIView):
     permission_classes = [AllowAny]
@@ -119,6 +121,7 @@ class CreatePersonnelView(APIView):
         return Response({
             'status': 'error',
             'message': serializer.errors
+
         }, status=status.HTTP_400_BAD_REQUEST)
         
 class CreateResponsableFormationEcoleView(APIView):
@@ -209,3 +212,4 @@ class EditFormateurView(APIView):
         serializer = FormateurSerializer()
         serializer.delete(formateur)
         return Response(status=status.HTTP_204_NO_CONTENT)
+

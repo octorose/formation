@@ -62,6 +62,7 @@ class SuperviseurSerializer(serializers.ModelSerializer):
         agent = AgentSerializer.create(AgentSerializer(), validated_data=agent_data)
         superviseur = Superviseur.objects.create(agent=agent, **validated_data)
         return superviseur
+
     
 class ResponsableFormationEcoleSerializer(serializers.ModelSerializer):
     agent = AgentSerializer()
@@ -121,3 +122,4 @@ class FormateurSerializer(serializers.ModelSerializer):
         instance.isAffecteur = validated_data.get('isAffecteur', instance.isAffecteur)
         instance.save()
         return instance
+
