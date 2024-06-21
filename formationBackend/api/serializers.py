@@ -1,11 +1,12 @@
 # serializers.py
 from rest_framework import serializers
-from .models import Agent, Superviseur, Ligne, Personnel, RH
 from django.contrib.auth import authenticate
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework import serializers
-from .models import Agent
+from .models import Agent, Superviseur, Ligne, Personnel, RH, Module
 from datetime import datetime
+from django.core.files import File
+from django.conf import settings
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     username_field = 'username'
@@ -58,6 +59,7 @@ class AgentSerializer(serializers.ModelSerializer):
                 setattr(instance, attr, value)
         instance.save()
         return instance
+
 
 class PersonnelSerializer(serializers.ModelSerializer):
     agent = AgentSerializer()
@@ -117,6 +119,12 @@ class PersonnelSerializer(serializers.ModelSerializer):
         agent = AgentSerializer.create(AgentSerializer(), validated_data=agent_data)
         personnel = Personnel.objects.create(agent=agent, **validated_data)
         return personnel
+    def delete(self, validated_data):
+        agent_data = validated_data.pop('agent')
+        agent_data['role'] = 'Personnel'
+        agent = AgentSerializer.delete(AgentSerializer(), validated_data=agent_data)
+        personnel = Personnel.objects.delete(agent=agent, **validated_data)
+        return personnel
 
 class SuperviseurSerializer(serializers.ModelSerializer):
     agent = AgentSerializer()
@@ -141,3 +149,8 @@ class DateTruncatedMonthField(serializers.ReadOnlyField):
 class PersonnelCountSerializer(serializers.Serializer):
     month = DateTruncatedMonthField()
     count = serializers.IntegerField()
+
+class ModuleSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Module
+        fields = ['id', 'name', 'description']

@@ -1,9 +1,10 @@
 # views.py
 from rest_framework.views import APIView
 from rest_framework.response import Response
+from rest_framework.parsers import MultiPartParser, FormParser,JSONParser
 from django.db.models import Count
 from rest_framework import status, generics
-from .serializers import SuperviseurSerializer, PersonnelSerializer, RHSerializer, PersonnelCountSerializer
+from .serializers import SuperviseurSerializer, PersonnelSerializer, RHSerializer, PersonnelCountSerializer, AgentSerializer, ModuleSerializer
 from rest_framework.permissions import AllowAny
 from rest_framework_simplejwt.views import TokenObtainPairView
 from .serializers import CustomTokenObtainPairSerializer
@@ -11,8 +12,13 @@ from .models import Agent, RH, ResponsableFormation, ResponsableEcoleFormation, 
 from django.contrib.auth.hashers import make_password
 from django.db.models.functions import TruncMonth, Coalesce
 from django.http import JsonResponse
-
-
+import random
+from django.core.files import File
+from rest_framework.generics import ListAPIView
+from django.conf import settings
+from .models import Module
+from rest_framework.pagination import PageNumberPagination
+from django.shortcuts import get_object_or_404
 
 class PersonnelSumByEtatView(APIView):
     permission_classes = [AllowAny]
@@ -62,14 +68,12 @@ class PersonnelCountByMonthAPIView(APIView):
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 class RegisterView(APIView):
-    permission_classes = [AllowAny]
 
 
     def post(self, request):
         try:
             data = request.data
             role = data.get('role')
-
             agent_data = data.get('agent')
             username = agent_data.get('username')
             email = agent_data.get('email')
@@ -137,7 +141,7 @@ class RegisterView(APIView):
 class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer  
 class CreateSupervisorView(APIView):
-    permission_classes = [AllowAny]
+
 
     def post(self, request):
         serializer = SuperviseurSerializer(data=request.data)
@@ -152,9 +156,16 @@ class CreateSupervisorView(APIView):
             'status': 'error',
             'message': serializer.errors
         }, status=status.HTTP_400_BAD_REQUEST)
-
+class SupervisorListView(APIView):
+    def get(self, request):
+        supervisors = Superviseur.objects.all()
+        paginator = PageNumberPagination()
+        paginator.page_size = 10  # Number of supervisors per page
+        result_page = paginator.paginate_queryset(supervisors, request)
+        serializer = SuperviseurSerializer(result_page, many=True)
+        return paginator.get_paginated_response(serializer.data)
 class CreatePersonnelView(APIView):
-    permission_classes = [AllowAny]
+
 
     def post(self, request):
         serializer = PersonnelSerializer(data=request.data)
@@ -169,9 +180,94 @@ class CreatePersonnelView(APIView):
             'status': 'error',
             'message': serializer.errors
         }, status=status.HTTP_400_BAD_REQUEST)
-    
-class CreateRHView(APIView):
+
+class DeletePersonnelView(APIView):
     permission_classes = [AllowAny]
+
+    def delete(self, request, pk, format=None):
+        try:
+            personnel = get_object_or_404(Personnel, pk=pk)
+            agent = personnel.agent
+            personnel.delete()
+            agent.delete()
+            return Response({'message': 'Personnel and associated Agent deleted successfully.'}, status=status.HTTP_204_NO_CONTENT)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST) 
+
+class UpdatePersonnelView(APIView):
+    permission_classes = [AllowAny]
+
+    def put(self, request, pk, format=None):
+        try:
+            personnel = get_object_or_404(Personnel, pk=pk)
+            agent = personnel.agent
+
+            # Extract agent data and personnel data from the request
+            agent_data = request.data.get('agent', {})
+            personnel_data = request.data
+            personnel_data.pop('agent', None)  # Remove agent data from personnel data
+
+            # Separate many-to-many fields from other fields
+            agent_m2m_fields = {field.name: agent_data.pop(field.name, []) for field in Agent._meta.get_fields() if field.many_to_many}
+            personnel_m2m_fields = {field.name: personnel_data.pop(field.name, []) for field in Personnel._meta.get_fields() if field.many_to_many}
+
+            # Update Agent
+            agent_serializer = AgentSerializer(agent, data=agent_data, partial=True)
+            if agent_serializer.is_valid():
+                agent_serializer.save()
+                # Update many-to-many fields for Agent
+                for field_name, value in agent_m2m_fields.items():
+                    field = getattr(agent, field_name)
+                    field.set(value)
+            else:
+                return Response({'agent_errors': agent_serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+            # Update Personnel
+            personnel_serializer = PersonnelSerializer(personnel, data=personnel_data, partial=True)
+            if personnel_serializer.is_valid():
+                personnel_serializer.save()
+                # Update many-to-many fields for Personnel
+                for field_name, value in personnel_m2m_fields.items():
+                    field = getattr(personnel, field_name)
+                    field.set(value)
+            else:
+                return Response({'personnel_errors': personnel_serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+            return Response({
+                'personnel': personnel_serializer.data,
+                'agent': agent_serializer.data
+            }, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+class PersonnelSearchView(APIView):
+    def get(self, request):
+        query = request.query_params.get('query', '')
+        if query:
+            personnel = Personnel.objects.filter(
+                agent__role='Personnel',
+                agent__nom__icontains=query
+            ) | Personnel.objects.filter(
+                agent__role='Personnel',
+                agent__prenom__icontains=query
+            ) | Personnel.objects.filter(
+                agent__role='Personnel',
+                agent__cin__icontains=query
+            ) | Personnel.objects.filter(
+                agent__role='Personnel',
+                agent__email__icontains=query
+            ) | Personnel.objects.filter(
+                agent__role='Personnel',
+                agent__numerotel__icontains=query
+            ) | Personnel.objects.filter(
+                agent__role='Personnel',
+                etat__icontains=query
+            )
+            serializer = PersonnelSerializer(personnel, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response({"message": "No query provided"}, status=status.HTTP_400_BAD_REQUEST)
+class CreateRHView(APIView):
+
 
 
     def post(self, request):
@@ -192,3 +288,27 @@ class PersonnelListView(generics.ListAPIView):
     # permission_classes = [AllowAny]
     queryset = Personnel.objects.all()
     serializer_class = PersonnelSerializer
+    
+class ModuleCreateView(APIView):
+    def post(self, request):
+        serializer = ModuleSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+class ModuleListView(APIView):
+    def get(self, request):
+        modules = Module.objects.all()
+        paginator = PageNumberPagination()
+        paginator.page_size = 3  # Number of modules per page
+        result_page = paginator.paginate_queryset(modules, request)
+        serializer = ModuleSerializer(result_page, many=True)
+        return paginator.get_paginated_response(serializer.data)
+
+    def post(self, request):
+        serializer = ModuleSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
