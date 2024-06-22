@@ -1,6 +1,8 @@
 # serializers.py
-from rest_framework import serializers
+from rest_framework import serializers, status
 from django.contrib.auth import authenticate
+from rest_framework.views import APIView
+from rest_framework.response import Response
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework import serializers
 from .models import Agent, Superviseur, Ligne, Personnel, RH, Module
@@ -129,10 +131,11 @@ class PersonnelSerializer(serializers.ModelSerializer):
 class SuperviseurSerializer(serializers.ModelSerializer):
     agent = AgentSerializer()
     ligne_id = serializers.PrimaryKeyRelatedField(queryset=Ligne.objects.all(), source='ligne')
+    ligne_name = serializers.CharField(source='ligne.name', read_only=True)
 
     class Meta:
         model = Superviseur
-        fields = ['id', 'agent', 'ligne_id']
+        fields = ['id', 'agent', 'ligne_id', 'ligne_name']
 
     def create(self, validated_data):
         agent_data = validated_data.pop('agent')
@@ -140,6 +143,7 @@ class SuperviseurSerializer(serializers.ModelSerializer):
         agent = AgentSerializer.create(AgentSerializer(), validated_data=agent_data)
         superviseur = Superviseur.objects.create(agent=agent, **validated_data)
         return superviseur
+
 class DateTruncatedMonthField(serializers.ReadOnlyField):
     def to_representation(self, value):
         if isinstance(value, datetime):

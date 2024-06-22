@@ -18,6 +18,7 @@ from rest_framework.generics import ListAPIView
 from django.conf import settings
 from .models import Module
 from rest_framework.pagination import PageNumberPagination
+from django.db.models import Q
 from django.shortcuts import get_object_or_404
 
 class PersonnelSumByEtatView(APIView):
@@ -164,6 +165,36 @@ class SupervisorListView(APIView):
         result_page = paginator.paginate_queryset(supervisors, request)
         serializer = SuperviseurSerializer(result_page, many=True)
         return paginator.get_paginated_response(serializer.data)
+    
+class SupervisorSearchView(APIView):
+    def get(self, request):
+        query = request.query_params.get('query', '')
+        if query:
+            superviseurs = Superviseur.objects.filter(
+                Q(agent__nom__icontains=query) |
+                Q(agent__prenom__icontains=query) |
+                Q(agent__cin__icontains=query) |
+                Q(agent__email__icontains=query) |
+                Q(agent__numerotel__icontains=query) |
+                Q(ligne__name__icontains=query)
+            )
+            serializer = SuperviseurSerializer(superviseurs, many=True)
+         
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response({"message": "No query provided"}, status=status.HTTP_400_BAD_REQUEST)
+class SuperviseurDeleteView(APIView):
+    permission_classes = [AllowAny]
+
+    def delete(self, request, pk, format=None):
+        try:
+            superviseur = get_object_or_404(Superviseur, pk=pk)
+            superviseur.delete()
+            agent = superviseur.agent
+            agent.delete()
+            return Response({'message': 'Supervisor and associated Agent deleted successfully.'}, status=status.HTTP_204_NO_CONTENT)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        
 class CreatePersonnelView(APIView):
 
 
@@ -193,10 +224,11 @@ class DeletePersonnelView(APIView):
             return Response({'message': 'Personnel and associated Agent deleted successfully.'}, status=status.HTTP_204_NO_CONTENT)
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST) 
+        
 
 class UpdatePersonnelView(APIView):
     permission_classes = [AllowAny]
-
+    print("update")
     def put(self, request, pk, format=None):
         try:
             personnel = get_object_or_404(Personnel, pk=pk)

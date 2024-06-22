@@ -175,5 +175,3 @@ CORS_ALLOWED_ORIGINS=[
 # https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-print("INSTALLED_APPS:", INSTALLED_APPS)
-print("DEFAULT_FILE_STORAGE:", DEFAULT_FILE_STORAGE)
