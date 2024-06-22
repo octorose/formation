@@ -93,6 +93,7 @@ class Superviseur(models.Model):
 
 
 
+
 class Personnel(models.Model):
     agent = models.OneToOneField(Agent, on_delete=models.CASCADE)
     etat = models.CharField(max_length=100, blank=True, null=True, default="Candidat")
@@ -100,6 +101,7 @@ class Personnel(models.Model):
 
     def __str__(self):
         return f"{self.agent.prenom} {self.agent.nom} ({self.agent.role})"
+
 
 class Test(models.Model):
     type_test = models.CharField(max_length=100)
@@ -110,6 +112,7 @@ class Test(models.Model):
     def __str__(self):
         return f"Test: {self.type_test} le {self.date_test}"
 
+
 class NoteTestPersonnel(models.Model):
     personnel = models.ForeignKey(Personnel, on_delete=models.CASCADE)
     test = models.ForeignKey(Test, on_delete=models.CASCADE)
@@ -117,7 +120,8 @@ class NoteTestPersonnel(models.Model):
 
     def __str__(self):
         return f"Note du test {self.test} pour {self.personnel.agent.prenom} {self.personnel.agent.nom} : {self.noteTest}"
-    
+
+
 class Contrat(models.Model):
     agent = models.OneToOneField(Agent, on_delete=models.CASCADE)
     type_contrat = models.CharField(max_length=100)

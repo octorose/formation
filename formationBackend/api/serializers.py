@@ -1,6 +1,6 @@
 # serializers.py
 from rest_framework import serializers
-from .models import Agent, Superviseur, Ligne, Personnel
+from .models import Agent, Superviseur, Ligne, Personnel , Contrat
 from django.contrib.auth import authenticate
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework import serializers
@@ -62,3 +62,29 @@ class SuperviseurSerializer(serializers.ModelSerializer):
         agent = AgentSerializer.create(AgentSerializer(), validated_data=agent_data)
         superviseur = Superviseur.objects.create(agent=agent, **validated_data)
         return superviseur
+
+
+
+class ContratSerializer(serializers.ModelSerializer):
+    agent_id = serializers.PrimaryKeyRelatedField(queryset=Agent.objects.all(), source='agent')
+
+    class Meta:
+        model = Contrat
+        fields = ['id', 'agent_id', 'type_contrat', 'date_creation_contrat', 'duree_contrat']
+
+    def create(self, validated_data):
+        agent_id = validated_data.pop('agent')
+        agent = Agent.objects.get(id=agent_id)
+        contrat = Contrat.objects.create(agent=agent, **validated_data)
+        return contrat
+
+    def update(self, instance, validated_data):
+        agent_id = validated_data.pop('agent')
+        agent = Agent.objects.get(id=agent_id)
+        instance.agent = agent
+        instance.type_contrat = validated_data.get('type_contrat', instance.type_contrat)
+        instance.date_creation_contrat = validated_data.get('date_creation_contrat', instance.date_creation_contrat)
+        instance.duree_contrat = validated_data.get('duree_contrat', instance.duree_contrat)
+        instance.save()
+        return instance
+    

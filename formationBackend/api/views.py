@@ -3,12 +3,13 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework import status
-from .serializers import SuperviseurSerializer, PersonnelSerializer
+from .serializers import SuperviseurSerializer, PersonnelSerializer, CustomTokenObtainPairSerializer, ContratSerializer, AgentSerializer
 from rest_framework.permissions import AllowAny
 from rest_framework_simplejwt.views import TokenObtainPairView
-from .serializers import CustomTokenObtainPairSerializer
-from .models import Agent, RH, ResponsableFormation, ResponsableEcoleFormation, Formateur, Superviseur, Personnel, Ligne
+from .models import Agent, RH, ResponsableFormation, ResponsableEcoleFormation, Formateur, Superviseur, Personnel, Ligne , Contrat
 from django.contrib.auth.hashers import make_password
+from django.http import Http404
+
 
 class RegisterView(APIView):
     permission_classes = [AllowAny]
@@ -84,6 +85,7 @@ class RegisterView(APIView):
 
 class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer  
+    
 class CreateSupervisorView(APIView):
     permission_classes = [AllowAny]
 
@@ -117,3 +119,45 @@ class CreatePersonnelView(APIView):
             'status': 'error',
             'message': serializer.errors
         }, status=status.HTTP_400_BAD_REQUEST)
+        
+        
+              
+        
+class CreateContratView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        serializer = ContratSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class EditContratView(APIView):
+    permission_classes = [AllowAny]
+
+    def get_object(self, pk):
+        try:
+            return Contrat.objects.get(pk=pk)
+        except Contrat.DoesNotExist:
+            raise Http404
+
+    def get(self, request, pk):
+        contrat = self.get_object(pk)
+        serializer = ContratSerializer(contrat)
+        return Response(serializer.data)
+
+    def put(self, request, pk):
+        contrat = self.get_object(pk)
+        serializer = ContratSerializer(contrat, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, pk):
+        contrat = self.get_object(pk)
+        contrat.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+    
