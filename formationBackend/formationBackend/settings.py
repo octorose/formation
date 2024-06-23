@@ -12,6 +12,8 @@ https://docs.djangoproject.com/en/5.0/ref/settings/
 
 from pathlib import Path
 import environ
+import os
+
 from datetime import timedelta
 
 env = environ.Env()
@@ -33,7 +35,6 @@ ALLOWED_HOSTS = []
 
 AUTH_USER_MODEL = 'api.Agent'
 # Application definition
-
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -42,10 +43,14 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework_simplejwt.token_blacklist',
+    # 'django.core.files.storage.FileSystemStorage',
     'rest_framework',
     'djoser',
     'api',
 ]
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -137,13 +142,16 @@ DJOSER = {
     'TOKEN_MODEL': None,
 }
 
+
 REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
     ],
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
-    )
+    ),
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 5  
 }
 
 SIMPLE_JWT = {
@@ -161,7 +169,7 @@ SIMPLE_JWT = {
 }
 
 CORS_ALLOWED_ORIGINS=[
-    'http://localhost:8000'
+    'http://localhost:3000'
 ]
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field

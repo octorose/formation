@@ -80,6 +80,7 @@ class ResponsableEcoleFormation(models.Model):
 class Formateur(models.Model):
     agent = models.OneToOneField(Agent, on_delete=models.CASCADE,null=True, blank=True)
     isAffecteur = models.BooleanField(default=False)
+    lignes = models.ManyToManyField('Ligne', related_name='formateurs')
 
 class Ligne(models.Model):
     name = models.CharField(max_length=100)
@@ -94,3 +95,16 @@ class Superviseur(models.Model):
 class Personnel(models.Model):
     agent = models.OneToOneField(Agent, on_delete=models.CASCADE)
     etat = models.CharField(max_length=100, blank=True, null=True, default="Candidate")
+class Poste(models.Model):
+    name = models.CharField(max_length=100)
+    lignes = models.ManyToManyField('Ligne', related_name='postes')
+    
+    def __str__(self):
+        return self.name
+
+class Module(models.Model):
+    name = models.CharField(max_length=100)
+    description = models.TextField()
+
+    def __str__(self):
+        return self.name
