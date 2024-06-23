@@ -11,6 +11,11 @@ from django.contrib.auth.hashers import make_password
 from django.http import Http404
 
 
+
+from .serializers import ResponsableFormationEcoleSerializer,FormateurSerializer
+from django.http.response import Http404
+
+
 class RegisterView(APIView):
     permission_classes = [AllowAny]
 
@@ -118,6 +123,7 @@ class CreatePersonnelView(APIView):
         return Response({
             'status': 'error',
             'message': serializer.errors
+
         }, status=status.HTTP_400_BAD_REQUEST)
         
         
@@ -160,4 +166,92 @@ class EditContratView(APIView):
         contrat = self.get_object(pk)
         contrat.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+        
+class CreateResponsableFormationEcoleView(APIView):
+    permission_classes = [AllowAny]
+   
+    def post(self, request):
+        serializer = ResponsableFormationEcoleSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({
+                'status': 'success',
+                'message': 'ResponsableFormation created successfully',
+                'responsableformation_id': serializer.data['id']
+            }, status=status.HTTP_201_CREATED)
+        return Response({
+            'status': 'error',
+            'message': serializer.errors
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+class EditResponsableFormationEcoleView(APIView):
+    permission_classes = [AllowAny]
+
+    def get_object(self, pk):
+        try:
+            return ResponsableEcoleFormation.objects.get(pk=pk)
+        except ResponsableEcoleFormation.DoesNotExist:
+            raise Http404
+
+    def get(self, request, pk, format=None):
+        responsable_formation = self.get_object(pk)
+        serializer = ResponsableFormationEcoleSerializer(responsable_formation)
+        return Response(serializer.data)
+
+    def put(self, request, pk, format=None):
+        responsable_formation = self.get_object(pk)
+        serializer = ResponsableFormationEcoleSerializer(responsable_formation, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, pk, format=None):
+        responsable_formation = self.get_object(pk)
+        responsable_formation.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
     
+class CreateFormateurView(APIView):
+    permission_classes = [AllowAny]
+   
+    def post(self, request):
+        serializer = FormateurSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({
+                'status': 'success',
+                'message': 'Formateur created successfully',
+                'formateur_id': serializer.data['id']
+            }, status=status.HTTP_201_CREATED)
+        return Response({
+            'status': 'error',
+            'message': serializer.errors
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+class EditFormateurView(APIView):
+    permission_classes = [AllowAny]
+
+    def get_object(self, pk):
+        try:
+            return Formateur.objects.get(pk=pk)
+        except Formateur.DoesNotExist:
+            raise Http404
+
+    def get(self, request, pk, format=None):
+        formateur = self.get_object(pk)
+        serializer = FormateurSerializer(formateur)
+        return Response(serializer.data)
+
+    def put(self, request, pk, format=None):
+        formateur = self.get_object(pk)
+        serializer = FormateurSerializer(formateur, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, pk, format=None):
+        formateur = self.get_object(pk)
+        serializer = FormateurSerializer()
+        serializer.delete(formateur)
+        return Response(status=status.HTTP_204_NO_CONTENT)
