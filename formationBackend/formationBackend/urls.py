@@ -29,6 +29,8 @@ urlpatterns = [
     path('api/responsableEcoleformation/<int:pk>/',EditResponsableFormationEcoleView.as_view(), name='edit_responsableEcoleformation'),
     path('api/formateur/',CreateFormateurView.as_view(),name='create_formateur'),
     path('api/formateur/<int:pk>/',EditFormateurView.as_view(),name='edit_formateur'),
+    
+    path('api/',include('api.urls')),
     ]
 
 if settings.DEBUG:
