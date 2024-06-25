@@ -22,6 +22,9 @@ from rest_framework.pagination import PageNumberPagination
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
 
+from .models import Test, Contrat
+from .serializers import TestSerializer, ContratSerializer
+
 class PersonnelSumByEtatView(APIView):
     permission_classes = [AllowAny]
 
@@ -158,6 +161,7 @@ class CreateSupervisorView(APIView):
             'status': 'error',
             'message': serializer.errors
         }, status=status.HTTP_400_BAD_REQUEST)
+        
 class SupervisorListView(APIView):
     def get(self, request):
         supervisors = Superviseur.objects.all()
@@ -434,3 +438,130 @@ class EditFormateurView(APIView):
         serializer.delete(formateur)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
+
+
+# Views for Test
+class ListTestView(generics.ListAPIView):
+    permission_classes = [AllowAny]
+    queryset = Test.objects.all()
+    serializer_class = TestSerializer
+
+class CreateTestView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        serializer = TestSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({
+                'status': 'success',
+                'message': 'Test created successfully',
+                'test_id': serializer.data['id']
+            }, status=status.HTTP_201_CREATED)
+        return Response({
+            'status': 'error',
+            'message': serializer.errors
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+class SearchTestView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        query = request.query_params.get('query', '')
+        if query:
+            tests = Test.objects.filter(
+                type_test__icontains=query
+            ) | Test.objects.filter(
+                date_test__icontains=query
+            )
+            serializer = TestSerializer(tests, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response({"message": "No query provided"}, status=status.HTTP_400_BAD_REQUEST)
+
+class DeleteTestView(APIView):
+    permission_classes = [AllowAny]
+
+    def delete(self, request, pk, format=None):
+        try:
+            test = get_object_or_404(Test, pk=pk)
+            test.delete()
+            return Response({'message': 'Test deleted successfully.'}, status=status.HTTP_204_NO_CONTENT)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+class UpdateTestView(APIView):
+    permission_classes = [AllowAny]
+
+    def put(self, request, pk, format=None):
+        try:
+            test = get_object_or_404(Test, pk=pk)
+            serializer = TestSerializer(test, data=request.data, partial=True)
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+# Views for Contrat
+class ListContratView(generics.ListAPIView):
+    permission_classes = [AllowAny]
+    queryset = Contrat.objects.all()
+    serializer_class = ContratSerializer
+
+class CreateContratView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        serializer = ContratSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({
+                'status': 'success',
+                'message': 'Contrat created successfully',
+                'contrat_id': serializer.data['id']
+            }, status=status.HTTP_201_CREATED)
+        return Response({
+            'status': 'error',
+            'message': serializer.errors
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+class SearchContratView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        query = request.query_params.get('query', '')
+        if query:
+            contrats = Contrat.objects.filter(
+                type_contrat__icontains=query
+            ) | Contrat.objects.filter(
+                date_creation_contrat__icontains=query
+            )
+            serializer = ContratSerializer(contrats, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response({"message": "No query provided"}, status=status.HTTP_400_BAD_REQUEST)
+
+class DeleteContratView(APIView):
+    permission_classes = [AllowAny]
+
+    def delete(self, request, pk, format=None):
+        try:
+            contrat = get_object_or_404(Contrat, pk=pk)
+            contrat.delete()
+            return Response({'message': 'Contrat deleted successfully.'}, status=status.HTTP_204_NO_CONTENT)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+class UpdateContratView(APIView):
+    permission_classes = [AllowAny]
+
+    def put(self, request, pk, format=None):
+        try:
+            contrat = get_object_or_404(Contrat, pk=pk)
+            serializer = ContratSerializer(contrat, data=request.data, partial=True)
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
