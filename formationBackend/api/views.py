@@ -8,7 +8,7 @@ from .serializers import SuperviseurSerializer, PersonnelSerializer, RHSerialize
 from rest_framework.permissions import AllowAny
 from rest_framework_simplejwt.views import TokenObtainPairView
 from .serializers import CustomTokenObtainPairSerializer
-from .models import Agent, RH, ResponsableFormation, ResponsableEcoleFormation, Formateur, Superviseur, Personnel, Ligne
+from .models import Agent, RH, ResponsableFormation, ResponsableEcoleFormation, Superviseur, Personnel, Ligne,Formateur
 from django.contrib.auth.hashers import make_password
 from django.db.models.functions import TruncMonth, Coalesce
 from django.http import JsonResponse
@@ -229,7 +229,7 @@ class DeletePersonnelView(APIView):
 
 class UpdatePersonnelView(APIView):
     permission_classes = [AllowAny]
-    print("update")
+
     def put(self, request, pk, format=None):
         try:
             personnel = get_object_or_404(Personnel, pk=pk)
@@ -237,12 +237,20 @@ class UpdatePersonnelView(APIView):
 
             # Extract agent data and personnel data from the request
             agent_data = request.data.get('agent', {})
-            personnel_data = request.data
+            personnel_data = request.data.copy()  # Use copy to avoid mutating original request data
             personnel_data.pop('agent', None)  # Remove agent data from personnel data
 
-            # Separate many-to-many fields from other fields
-            agent_m2m_fields = {field.name: agent_data.pop(field.name, []) for field in Agent._meta.get_fields() if field.many_to_many}
-            personnel_m2m_fields = {field.name: personnel_data.pop(field.name, []) for field in Personnel._meta.get_fields() if field.many_to_many}
+            # Separate many-to-many fields from other fields for Agent
+            agent_m2m_fields = {}
+            for field in Agent._meta.get_fields():
+                if field.many_to_many:
+                    agent_m2m_fields[field.name] = agent_data.pop(field.name, [])
+
+            # Separate many-to-many fields from other fields for Personnel
+            personnel_m2m_fields = {}
+            for field in Personnel._meta.get_fields():
+                if field.many_to_many:
+                    personnel_m2m_fields[field.name] = personnel_data.pop(field.name, [])
 
             # Update Agent
             agent_serializer = AgentSerializer(agent, data=agent_data, partial=True)
@@ -273,6 +281,7 @@ class UpdatePersonnelView(APIView):
 
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
 class PersonnelSearchView(APIView):
     def get(self, request):
         query = request.query_params.get('query', '')
@@ -344,9 +353,17 @@ class ModuleListView(APIView):
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+#///////////////////////////////////////////////////////////////////////////////////////////:
+class ResponsableFormationListView(generics.ListAPIView):
+    permission_classes = [AllowAny]  
+    queryset = ResponsableEcoleFormation.objects.all()
+    serializer_class = ResponsableFormationEcoleSerializer
+    
 class CreateResponsableFormationEcoleView(APIView):
     permission_classes = [AllowAny]
-   
+
     def post(self, request):
         serializer = ResponsableFormationEcoleSerializer(data=request.data)
         if serializer.is_valid():
@@ -360,38 +377,79 @@ class CreateResponsableFormationEcoleView(APIView):
             'status': 'error',
             'message': serializer.errors
         }, status=status.HTTP_400_BAD_REQUEST)
-
-# WHY IS THIS CLASS HAS GET AND DELETE METHODS SINCE IT SAYS EDIT RESPONSABLE FORMATION ECOLE VIEW?
-class EditResponsableFormationEcoleView(APIView):
+class DeleteResponsableFormationEcoleView(APIView):
     permission_classes = [AllowAny]
-
-    def get_object(self, pk):
-        try:
-            return ResponsableEcoleFormation.objects.get(pk=pk)
-        except ResponsableEcoleFormation.DoesNotExist:
-            raise Http404
-
-    def get(self, request, pk, format=None):
-        responsable_formation = self.get_object(pk)
-        serializer = ResponsableFormationEcoleSerializer(responsable_formation)
-        return Response(serializer.data)
-
-    def put(self, request, pk, format=None):
-        responsable_formation = self.get_object(pk)
-        serializer = ResponsableFormationEcoleSerializer(responsable_formation, data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def delete(self, request, pk, format=None):
-        responsable_formation = self.get_object(pk)
-        responsable_formation.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
-    
+        try:
+            responsable_formation = get_object_or_404(ResponsableEcoleFormation, pk=pk)
+            responsable_formation.delete()
+            return Response({'message': 'ResponsableFormation deleted successfully.'}, status=status.HTTP_204_NO_CONTENT)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+class UpdateResponsableEcoleFormationView(APIView):
+    permission_classes = [AllowAny]
+
+    def put(self, request, pk, format=None):
+        try:
+            responsable_formation = get_object_or_404(ResponsableEcoleFormation, pk=pk)
+            agent = responsable_formation.agent
+            agent_data = request.data.get('agent', {})
+            responsable_data = request.data
+            responsable_data.pop('agent', None) 
+            agent_m2m_fields = {field.name: agent_data.pop(field.name, []) for field in Agent._meta.get_fields() if field.many_to_many}
+            responsable_m2m_fields = {field.name: responsable_data.pop(field.name, []) for field in ResponsableEcoleFormation._meta.get_fields() if field.many_to_many}
+
+            agent_serializer = AgentSerializer(agent, data=agent_data, partial=True)
+            if agent_serializer.is_valid():
+                agent_serializer.save()
+                for field_name, value in agent_m2m_fields.items():
+                    field = getattr(agent, field_name)
+                    field.set(value)
+            else:
+                return Response({'agent_errors': agent_serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+            responsable_serializer = ResponsableFormationEcoleSerializer(responsable_formation, data=responsable_data, partial=True)
+            if responsable_serializer.is_valid():
+                responsable_serializer.save()
+                for field_name, value in responsable_m2m_fields.items():
+                    field = getattr(responsable_formation, field_name)
+                    field.set(value)
+            else:
+                return Response({'responsable_errors': responsable_serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+            return Response({
+                'responsable_formation': responsable_serializer.data,
+                'agent': agent_serializer.data
+            }, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+class ResponsableFormationEcoleSearchView(APIView):
+    def get(self, request):
+        query = request.query_params.get('query', '')
+        if query:
+            responsables = ResponsableEcoleFormation.objects.filter(
+                nom__icontains=query
+            ) | ResponsableEcoleFormation.objects.filter(
+                prenom__icontains=query
+            ) | ResponsableEcoleFormation.objects.filter(
+                email__icontains=query
+            )
+            serializer = ResponsableFormationEcoleSerializer(responsables, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response({"message": "No query provided"}, status=status.HTTP_400_BAD_REQUEST)
+
+ #///////////////////////////////////////////////////////////////////////////////////   
+class ListFormateurView(generics.ListAPIView):
+    permission_classes = [AllowAny]
+    queryset = Formateur.objects.all()
+    serializer_class = FormateurSerializer
+
 class CreateFormateurView(APIView):
     permission_classes = [AllowAny]
-   
+
     def post(self, request):
         serializer = FormateurSerializer(data=request.data)
         if serializer.is_valid():
@@ -406,31 +464,70 @@ class CreateFormateurView(APIView):
             'message': serializer.errors
         }, status=status.HTTP_400_BAD_REQUEST)
 
-class EditFormateurView(APIView):
+class SearchFormateurView(APIView):
     permission_classes = [AllowAny]
 
-    def get_object(self, pk):
-        try:
-            return Formateur.objects.get(pk=pk)
-        except Formateur.DoesNotExist:
-            raise Http404
+    def get(self, request):
+        query = request.query_params.get('query', '')
+        if query:
+            formateurs = Formateur.objects.filter(
+                nom__icontains=query
+            ) | Formateur.objects.filter(
+                prenom__icontains=query
+            ) | Formateur.objects.filter(
+                email__icontains=query
+            )
+            serializer = FormateurSerializer(formateurs, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response({"message": "No query provided"}, status=status.HTTP_400_BAD_REQUEST)
 
-    def get(self, request, pk, format=None):
-        formateur = self.get_object(pk)
-        serializer = FormateurSerializer(formateur)
-        return Response(serializer.data)
-
-    def put(self, request, pk, format=None):
-        formateur = self.get_object(pk)
-        serializer = FormateurSerializer(formateur, data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+class DeleteFormateurView(APIView):
+    permission_classes = [AllowAny]
 
     def delete(self, request, pk, format=None):
-        formateur = self.get_object(pk)
-        serializer = FormateurSerializer()
-        serializer.delete(formateur)
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        try:
+            formateur = get_object_or_404(Formateur, pk=pk)
+            formateur.delete()
+            return Response({'message': 'Formateur deleted successfully.'}, status=status.HTTP_204_NO_CONTENT)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
+class UpdateFormateurView(APIView):
+    permission_classes = [AllowAny]
+
+    def put(self, request, pk, format=None):
+        try:
+            formateur = get_object_or_404(Formateur, pk=pk)
+            agent = formateur.agent
+            agent_data = request.data.get('agent', {})
+            formateur_data = request.data
+            formateur_data.pop('agent', None)  # Remove agent data from formateur data
+
+            agent_m2m_fields = {field.name: agent_data.pop(field.name, []) for field in Agent._meta.get_fields() if field.many_to_many}
+            formateur_m2m_fields = {field.name: formateur_data.pop(field.name, []) for field in Formateur._meta.get_fields() if field.many_to_many}
+
+            agent_serializer = AgentSerializer(agent, data=agent_data, partial=True)
+            if agent_serializer.is_valid():
+                agent_serializer.save()
+                for field_name, value in agent_m2m_fields.items():
+                    field = getattr(agent, field_name)
+                    field.set(value)
+            else:
+                return Response({'agent_errors': agent_serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+            formateur_serializer = FormateurSerializer(formateur, data=formateur_data, partial=True)
+            if formateur_serializer.is_valid():
+                formateur_serializer.save()
+                for field_name, value in formateur_m2m_fields.items():
+                    field = getattr(formateur, field_name)
+                    field.set(value)
+            else:
+                return Response({'formateur_errors': formateur_serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+            return Response({
+                'formateur': formateur_serializer.data,
+                'agent': agent_serializer.data
+            }, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
