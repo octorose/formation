@@ -11,7 +11,7 @@ from .views import (
     UpdateContratView,
     DeleteContratView,
     ListContratView,
-    SearchContratView
+    SearchContratView,
     CreateResponsableFormationEcoleView,
     UpdateResponsableEcoleFormationView,
     DeleteResponsableFormationEcoleView,
