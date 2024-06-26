@@ -2,6 +2,7 @@ from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.contrib.auth.models import AbstractUser
 
+
 class AgentManager(BaseUserManager):
     def create_user(self, email, role, password=None, username=None, **extra_fields):
         if not email:
@@ -91,9 +92,38 @@ class Superviseur(models.Model):
     agent = models.OneToOneField(Agent, on_delete=models.CASCADE, null=True, blank=True)
     ligne = models.ForeignKey(Ligne, on_delete=models.CASCADE)
 
+
 class Personnel(models.Model):
     agent = models.OneToOneField(Agent, on_delete=models.CASCADE)
-    etat = models.CharField(max_length=100, blank=True, null=True, default="Candidate")
+    etat = models.CharField(max_length=100, blank=True, null=True, default="Candidat")
+
+    def __str__(self):
+        return f"{self.agent.prenom} {self.agent.nom} ({self.agent.role})"
+    
+class Test(models.Model):
+    type_test = models.CharField(max_length=100)
+    date_test = models.DateField()
+    responsables_ecole_formation = models.ManyToManyField('ResponsableEcoleFormation', related_name='tests')
+    formateurs = models.ManyToManyField('Formateur', related_name='tests')
+    noteTest = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    personnel = models.ForeignKey(Personnel, on_delete=models.CASCADE, related_name='tests')
+
+    def __str__(self):
+        responsables = ", ".join([str(r) for r in self.responsables_ecole_formation.all()])
+        formateurs = ", ".join([str(f) for f in self.formateurs.all()])
+        return (f"Test: {self.type_test} le {self.date_test} | Personnel: {self.personnel} | "
+                f"Note: {self.noteTest} | Responsables: {responsables} | Formateurs: {formateurs}")
+
+class Contrat(models.Model):
+    agent = models.OneToOneField(Agent, on_delete=models.CASCADE)
+    type_contrat = models.CharField(max_length=100)
+    date_creation_contrat = models.DateField()
+    duree_contrat = models.IntegerField()
+
+    def __str__(self):
+        return f"Contrat de {self.agent.prenom} {self.agent.nom} ({self.type_contrat})"
+    
+    
 class Poste(models.Model):
     name = models.CharField(max_length=100)
     lignes = models.ManyToManyField('Ligne', related_name='postes')

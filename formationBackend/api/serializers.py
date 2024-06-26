@@ -1,7 +1,7 @@
 # serializers.py
 from rest_framework import serializers, status
 from rest_framework import serializers
-from .models import Agent, Superviseur, Ligne, Personnel,ResponsableEcoleFormation,Formateur
+from .models import Agent, Superviseur, Ligne, Personnel, Test, Contrat ,ResponsableEcoleFormation,Formateur ,Test, Contrat 
 from django.contrib.auth import authenticate
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -11,6 +11,8 @@ from .models import Agent, Superviseur, Ligne, Personnel, RH, Module
 from datetime import datetime
 from django.core.files import File
 from django.conf import settings
+
+
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     username_field = 'username'
@@ -190,3 +192,47 @@ class FormateurSerializer(serializers.ModelSerializer):
         formateur = Formateur.objects.create(agent=agent, **validated_data)
         return formateur
 
+
+class TestSerializer(serializers.ModelSerializer):
+    responsables_ecole_formation = ResponsableFormationEcoleSerializer(many=True)
+    formateurs = FormateurSerializer(many=True)
+    personnel = PersonnelSerializer()
+
+    class Meta:
+        model = Test
+        fields = ['id', 'type_test', 'date_test', 'responsables_ecole_formation', 'formateurs', 'noteTest', 'personnel']
+
+    def create(self, validated_data):
+        responsables_data = validated_data.pop('responsables_ecole_formation')
+        formateurs_data = validated_data.pop('formateurs')
+        personnel_data = validated_data.pop('personnel')
+
+        test = Test.objects.create(**validated_data)
+
+        for responsable_data in responsables_data:
+            responsable, created = ResponsableEcoleFormation.objects.get_or_create(**responsable_data)
+            test.responsables_ecole_formation.add(responsable)
+
+        for formateur_data in formateurs_data:
+            formateur, created = Formateur.objects.get_or_create(**formateur_data)
+            test.formateurs.add(formateur)
+
+        personnel, created = Personnel.objects.get_or_create(**personnel_data)
+        test.personnel = personnel
+        test.save()
+
+        return test
+
+class ContratSerializer(serializers.ModelSerializer):
+    agent = AgentSerializer()
+
+    class Meta:
+        model = Contrat
+        fields = ['id', 'agent', 'type_contrat', 'date_creation_contrat', 'duree_contrat']
+
+    def create(self, validated_data):
+        agent_data = validated_data.pop('agent')
+        agent, created = Agent.objects.get_or_create(**agent_data)
+        contrat = Contrat.objects.create(agent=agent, **validated_data)
+        return contrat
+    

@@ -25,6 +25,7 @@ urlpatterns = [
     path('api/update_personnel/<int:pk>/', UpdatePersonnelView.as_view(), name='update_personnel'),
     path('api/modules/', ModuleListView.as_view(), name='module-list'),
     path('api/modules/create/', ModuleCreateView.as_view(), name='module-create'),
+
     
   
     path('api/',include('api.urls')),
