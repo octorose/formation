@@ -4,7 +4,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from api.views import CreateSupervisorView,UpdatePersonnelView,PersonnelSearchView, ModuleCreateView, CreatePersonnelView, RegisterView, CustomTokenObtainPairView, CreateRHView, PersonnelListView, PersonnelCountByMonthAPIView, PersonnelSumByEtatView, DeletePersonnelView, ModuleListView, SupervisorListView,SupervisorSearchView,SuperviseurDeleteView
 from django.conf import settings
 from django.conf.urls.static import static
-from api.views import CreateSupervisorView, CreatePersonnelView, RegisterView,EditFormateurView, CustomTokenObtainPairView,EditResponsableFormationEcoleView,CreateResponsableFormationEcoleView,CreateFormateurView
+from api.views import CreateSupervisorView, CreatePersonnelView, RegisterView, CustomTokenObtainPairView
 
 
 urlpatterns = [
@@ -25,11 +25,9 @@ urlpatterns = [
     path('api/update_personnel/<int:pk>/', UpdatePersonnelView.as_view(), name='update_personnel'),
     path('api/modules/', ModuleListView.as_view(), name='module-list'),
     path('api/modules/create/', ModuleCreateView.as_view(), name='module-create'),
-    path('api/responsableEcoleformation/', CreateResponsableFormationEcoleView.as_view(), name='create_responsableEcoleformation'),
-    path('api/responsableEcoleformation/<int:pk>/',EditResponsableFormationEcoleView.as_view(), name='edit_responsableEcoleformation'),
-    path('api/formateur/',CreateFormateurView.as_view(),name='create_formateur'),
-    path('api/formateur/<int:pk>/',EditFormateurView.as_view(),name='edit_formateur'),
+
     
+  
     path('api/',include('api.urls')),
     ]
 
