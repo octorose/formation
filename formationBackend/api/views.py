@@ -451,7 +451,9 @@ class DeleteResponsableFormationEcoleView(APIView):
     def delete(self, request, pk, format=None):
         try:
             responsable_formation = get_object_or_404(ResponsableEcoleFormation, pk=pk)
+            agent = responsable_formation.agent
             responsable_formation.delete()
+            agent.delete()
             return Response({'message': 'ResponsableFormation deleted successfully.'}, status=status.HTTP_204_NO_CONTENT)
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
@@ -560,8 +562,8 @@ class DeleteFormateurView(APIView):
     def delete(self, request, pk, format=None):
         try:
             formateur = get_object_or_404(Formateur, pk=pk)
-            formateur.delete()
             agent = formateur.agent
+            formateur.delete()
             agent.delete()
             return Response({'message': 'Formateur deleted successfully.'}, status=status.HTTP_204_NO_CONTENT)
         except Exception as e:

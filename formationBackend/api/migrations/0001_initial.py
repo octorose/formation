@@ -51,6 +51,16 @@ class Migration(migrations.Migration):
             ],
         ),
         migrations.CreateModel(
+            name='Contrat',
+            fields=[
+                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('type_contrat', models.CharField(max_length=100)),
+                ('date_creation_contrat', models.DateField()),
+                ('duree_contrat', models.IntegerField()),
+                ('agent', models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, to=settings.AUTH_USER_MODEL)),
+            ],
+        ),
+        migrations.CreateModel(
             name='Formateur',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
@@ -142,6 +152,18 @@ class Migration(migrations.Migration):
                 ('date_creation_contrat', models.DateField()),
                 ('duree_contrat', models.IntegerField()),
                 ('agent', models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, to=settings.AUTH_USER_MODEL)),
+            ],
+        ),
+        migrations.CreateModel(
+            name='Test',
+            fields=[
+                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('type_test', models.CharField(max_length=100)),
+                ('date_test', models.DateField()),
+                ('noteTest', models.DecimalField(blank=True, decimal_places=2, max_digits=5, null=True)),
+                ('formateurs', models.ManyToManyField(related_name='tests', to='api.formateur')),
+                ('personnel', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='tests', to='api.personnel')),
+                ('responsables_ecole_formation', models.ManyToManyField(related_name='tests', to='api.responsableecoleformation')),
             ],
         ),
     ]
