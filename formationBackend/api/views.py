@@ -497,15 +497,14 @@ class UpdateResponsableEcoleFormationView(APIView):
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 class ResponsableFormationEcoleSearchView(APIView):
+    permission_classes = [AllowAny]
     def get(self, request):
         query = request.query_params.get('query', '')
         if query:
             responsables = ResponsableEcoleFormation.objects.filter(
-                nom__icontains=query
-            ) | ResponsableEcoleFormation.objects.filter(
-                prenom__icontains=query
-            ) | ResponsableEcoleFormation.objects.filter(
-                email__icontains=query
+                Q(agent__nom__icontains=query) |
+                Q(agent__prenom__icontains=query) |
+                Q(agent__email__icontains=query)
             )
             serializer = ResponsableFormationEcoleSerializer(responsables, many=True)
             return Response(serializer.data, status=status.HTTP_200_OK)
@@ -546,11 +545,9 @@ class SearchFormateurView(APIView):
         query = request.query_params.get('query', '')
         if query:
             formateurs = Formateur.objects.filter(
-                nom__icontains=query
-            ) | Formateur.objects.filter(
-                prenom__icontains=query
-            ) | Formateur.objects.filter(
-                email__icontains=query
+                Q(nom__icontains=query) |
+                Q(prenom__icontains=query) |
+                Q(email__icontains=query)
             )
             serializer = FormateurSerializer(formateurs, many=True)
             return Response(serializer.data, status=status.HTTP_200_OK)
