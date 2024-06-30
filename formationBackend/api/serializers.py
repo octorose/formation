@@ -183,7 +183,7 @@ class FormateurSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Formateur
-        fields = ['id', 'isAffecteur','type', 'agent']
+        fields = ['id', 'isAffecteur','Type', 'agent']
 
     def create(self, validated_data):
         agent_data = validated_data.pop('agent')
@@ -235,4 +235,10 @@ class ContratSerializer(serializers.ModelSerializer):
         agent, created = Agent.objects.get_or_create(**agent_data)
         contrat = Contrat.objects.create(agent=agent, **validated_data)
         return contrat
-    
+
+
+
+class LigneSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Ligne
+        fields = '__all__'

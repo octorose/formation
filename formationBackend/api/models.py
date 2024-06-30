@@ -81,7 +81,7 @@ class ResponsableEcoleFormation(models.Model):
 class Formateur(models.Model):
     agent = models.OneToOneField(Agent, on_delete=models.CASCADE,null=True, blank=True)
     isAffecteur = models.BooleanField(default=False)
-    type=models.CharField(max_length=100)
+    Type = models.CharField(max_length=100, null=False, blank=False, default="Theorique")
 class Ligne(models.Model):
     name = models.CharField(max_length=100)
 
