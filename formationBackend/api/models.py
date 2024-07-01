@@ -94,12 +94,26 @@ class Superviseur(models.Model):
 
 
 class Personnel(models.Model):
+    OPERATOR_STATE = 'Operateur'
+    PERSONNEL_STATE = 'Candidat'
+    EN_FORMATION_STATE = 'En Formation'
+    STATE_CHOICES = [
+        (OPERATOR_STATE, 'Operateur'),
+        (PERSONNEL_STATE, 'Candidat'),
+        (EN_FORMATION_STATE, 'En Formation')
+    ]
+
     agent = models.OneToOneField(Agent, on_delete=models.CASCADE)
-    etat = models.CharField(max_length=100, blank=True, null=True, default="Candidat")
+    etat = models.CharField(max_length=100, choices=STATE_CHOICES, default=PERSONNEL_STATE)
+    ligne = models.ForeignKey(Ligne, on_delete=models.CASCADE, null=True, blank=True)
+
+    def save(self, *args, **kwargs):
+        if self.etat == self.OPERATOR_STATE and not self.ligne:
+            raise ValueError("Ligne must be set if the etat is Operator.")
+        super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"{self.agent.prenom} {self.agent.nom} ({self.agent.role})"
-    
+        return f"{self.agent.prenom} {self.agent.nom} ({self.agent.role})"    
 class Test(models.Model):
     type_test = models.CharField(max_length=100)
     date_test = models.DateField()

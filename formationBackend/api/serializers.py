@@ -117,7 +117,7 @@ class PersonnelSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Personnel
-        fields = ['id', 'agent', 'etat']
+        fields = ['id', 'agent', 'etat', 'ligne']
 
     def create(self, validated_data):
         agent_data = validated_data.pop('agent')
@@ -131,6 +131,12 @@ class PersonnelSerializer(serializers.ModelSerializer):
         agent = AgentSerializer.delete(AgentSerializer(), validated_data=agent_data)
         personnel = Personnel.objects.delete(agent=agent, **validated_data)
         return personnel
+class PersonnelUpdateEtatSerializer(serializers.ModelSerializer):
+    ligne = serializers.PrimaryKeyRelatedField(queryset=Ligne.objects.all())
+
+    class Meta:
+        model = Personnel
+        fields = ['ligne']
 
 class SuperviseurSerializer(serializers.ModelSerializer):
     agent = AgentSerializer()

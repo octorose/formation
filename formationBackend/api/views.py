@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser,JSONParser
 from django.db.models import Count
 from rest_framework import status, generics
-from .serializers import SuperviseurSerializer, PersonnelSerializer, RHSerializer, PersonnelCountSerializer, AgentSerializer, ModuleSerializer,ResponsableFormationEcoleSerializer,FormateurSerializer, LigneSerializer
+from .serializers import SuperviseurSerializer, PersonnelUpdateEtatSerializer, PersonnelSerializer, RHSerializer, PersonnelCountSerializer, AgentSerializer, ModuleSerializer,ResponsableFormationEcoleSerializer,FormateurSerializer, LigneSerializer
 from rest_framework.permissions import AllowAny
 from rest_framework_simplejwt.views import TokenObtainPairView
 from .serializers import CustomTokenObtainPairSerializer
@@ -195,15 +195,22 @@ class CreatePersonnelView(APIView):
     def post(self, request):
         data = request.data
         etat = data.get('etat')
+        ligne = data.get('ligne')
 
-        if etat not in ['En Formation', 'Candidate', 'Candidat']:
+        if etat not in ['En Formation', 'Candidate', 'Candidat' ,'Operateur']:
             return Response({
                 'status': 'error',
-                'message': 'Invalid etat value. Must be "En Formation" or "Candidate".'
+                'message': 'Invalid etat value. Must be "En Formation" or "Candidate" or "Operateur".'
             }, status=status.HTTP_400_BAD_REQUEST)
-
+        
+        
         serializer = PersonnelSerializer(data=data)
         if serializer.is_valid():
+            if etat == 'Operateur' and  ligne is None:
+                return Response({
+                    'status': 'error',
+                    'message': 'Ligne is required for Operateur.'
+                }, status=status.HTTP_400_BAD_REQUEST)
             serializer.save()
             return Response({
                 'status': 'success',
@@ -227,7 +234,21 @@ class DeletePersonnelView(APIView):
             return Response({'message': 'Personnel and associated Agent deleted successfully.'}, status=status.HTTP_204_NO_CONTENT)
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST) 
-        
+
+class UpdatePersonnelEtatToOperatorView(APIView):
+    def patch(self, request, *args, **kwargs):
+        personnel_id = self.kwargs.get('id')
+        try:
+            personnel = Personnel.objects.get(id=personnel_id)
+        except Personnel.DoesNotExist:
+            return Response({'error': 'Personnel not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = PersonnelUpdateEtatSerializer(personnel, data=request.data, partial=True)
+        if serializer.is_valid():
+            personnel.etat = Personnel.OPERATOR_STATE
+            serializer.save()
+            return Response({'message': 'Personnel updated to Operateur'}, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)   
 
 class UpdatePersonnelView(APIView):
     # permission_classes = [AllowAny]
@@ -235,12 +256,18 @@ class UpdatePersonnelView(APIView):
     def put(self, request, pk, format=None):
         data = request.data
         etat = data.get('etat')
+        ligne = data.get('ligne')
 
-        if etat not in ['En Formation', 'Candidate', 'Candidat']:
+        if etat not in ['En Formation', 'Candidate', 'Candidat', 'Operateur']:
             return Response({
                 'status': 'error',
                 'message': 'Invalid etat value. Must be "En Formation" or "Candidate".'
             }, status=status.HTTP_400_BAD_REQUEST)
+        if etat == 'Operateur' and  ligne is None:
+                return Response({
+                    'status': 'error',
+                    'message': 'Ligne is required for Operateur.'
+                }, status=status.HTTP_400_BAD_REQUEST)
         try:
             personnel = get_object_or_404(Personnel, pk=pk)
             agent = personnel.agent
@@ -336,9 +363,16 @@ class CreateRHView(APIView):
 
     
 class PersonnelListView(generics.ListAPIView):
-    # permission_classes = [AllowAny]
-    queryset = Personnel.objects.all()
     serializer_class = PersonnelSerializer
+
+    def get_queryset(self):
+        return Personnel.objects.exclude(etat=Personnel.OPERATOR_STATE)
+
+class PersonnelOperatorListView(generics.ListAPIView):
+    serializer_class = PersonnelSerializer
+
+    def get_queryset(self):
+        return Personnel.objects.filter(etat=Personnel.OPERATOR_STATE)
     
 class ModuleCreateView(APIView):
     def post(self, request):
@@ -512,6 +546,8 @@ class DeleteFormateurView(APIView):
         try:
             formateur = get_object_or_404(Formateur, pk=pk)
             formateur.delete()
+            agent = formateur.agent
+            agent.delete()
             return Response({'message': 'Formateur deleted successfully.'}, status=status.HTTP_204_NO_CONTENT)
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
