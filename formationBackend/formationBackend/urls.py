@@ -1,7 +1,7 @@
 
 from django.urls import path, include
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView,TokenVerifyView 
-from api.views import CreateSupervisorView,UpdatePersonnelView,PersonnelSearchView, ModuleCreateView, CreatePersonnelView, RegisterView, CustomTokenObtainPairView, CreateRHView, PersonnelListView, PersonnelCountByMonthAPIView, PersonnelSumByEtatView, DeletePersonnelView, ModuleListView, SupervisorListView,SupervisorSearchView,SuperviseurDeleteView
+from api.views import CreateSupervisorView,UpdatePersonnelView,PersonnelSearchView, ModuleCreateView, CreatePersonnelView, RegisterView, CustomTokenObtainPairView, CreateRHView, PersonnelListView, PersonnelCountByMonthAPIView, PersonnelSumByEtatView, DeletePersonnelView, ModuleListView, SupervisorListView,SupervisorSearchView,SuperviseurDeleteView,LigneListView
 from django.conf import settings
 from django.conf.urls.static import static
 from api.views import CreateSupervisorView, CreatePersonnelView, RegisterView, CustomTokenObtainPairView
@@ -27,7 +27,9 @@ urlpatterns = [
     path('api/modules/create/', ModuleCreateView.as_view(), name='module-create'),
 
     
-  
+
+    path('api/lignes/', LigneListView.as_view(), name='ligne-list'),
+
     path('api/',include('api.urls')),
     ]
 
