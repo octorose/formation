@@ -168,7 +168,7 @@ class ResponsableFormationEcoleSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ResponsableEcoleFormation
-        fields = ['id', 'school_name','agent']
+        fields = ['id','agent']
 
     def create(self, validated_data):
         agent_data = validated_data.pop('agent')
