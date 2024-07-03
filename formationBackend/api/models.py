@@ -61,7 +61,7 @@ class Agent(AbstractUser):
     temporary_session = models.BooleanField(default=False)
     # Override username field to make it nullable
     username = models.CharField(max_length=150, unique=True, null=True, blank=True)
-
+    site = models.CharField(max_length=100, blank=True, null=True)
     def __str__(self):
         return f"{self.prenom} {self.nom} ({self.role})"
 
@@ -77,8 +77,8 @@ class ResponsableFormation(models.Model):
 
 
 class ResponsableEcoleFormation(models.Model):
-    agent = models.OneToOneField(Agent, on_delete=models.CASCADE, null=True, blank=True)
-    school_name = models.CharField(max_length=100, blank=True, null=True)
+    agent = models.OneToOneField(Agent, on_delete=models.CASCADE,null=True, blank=True)
+   
 
 
 class Formateur(models.Model):
