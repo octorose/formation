@@ -22,7 +22,7 @@ from .models import Test, Contrat
 from .serializers import TestSerializer, ContratSerializer
 
 class PersonnelSumByEtatView(APIView):
-
+    permission_classes = [AllowAny]
     def get(self, request):
         try:
             # Aggregate sum of Personnel count by etat
@@ -36,7 +36,8 @@ class PersonnelSumByEtatView(APIView):
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 class PersonnelCountByMonthAPIView(APIView):
- def get(self, request):
+    
+    def get(self, request):
         try:
             queryset = Personnel.objects.annotate(
                 month=TruncMonth('agent__date_joined')
