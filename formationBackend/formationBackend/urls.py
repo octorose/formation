@@ -1,7 +1,7 @@
 
 from django.urls import path, include
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView,TokenVerifyView 
-from api.views import CreateSupervisorView,UpdatePersonnelView,PersonnelSearchView, ModuleCreateView, CreatePersonnelView, RegisterView, CustomTokenObtainPairView, CreateRHView, PersonnelListView, PersonnelCountByMonthAPIView, PersonnelSumByEtatView, DeletePersonnelView, ModuleListView, SupervisorListView,SupervisorSearchView,SuperviseurDeleteView,LigneListView,PersonnelOperatorListView, UpdatePersonnelEtatToOperatorView
+from api.views import CreateSupervisorView,UpdatePersonnelView, CreateLigneView, PersonnelSearchView, ModuleCreateView, PosteCreateView, CreatePersonnelView, RegisterView, CustomTokenObtainPairView, CreateRHView, PersonnelListView, PersonnelCountByMonthAPIView, PersonnelSumByEtatView, DeletePersonnelView, ModuleListView, SupervisorListView,SupervisorSearchView,SuperviseurDeleteView,LigneListView,PersonnelOperatorListView, UpdatePersonnelEtatToOperatorView
 from django.conf import settings
 from django.conf.urls.static import static
 from api.views import CreateSupervisorView, CreatePersonnelView, RegisterView, CustomTokenObtainPairView
@@ -24,13 +24,15 @@ urlpatterns = [
     path('api/delete_personnel/<int:pk>/', DeletePersonnelView.as_view(), name='delete_personnel'),
     path('api/personnel-search/', PersonnelSearchView.as_view(), name='personnel-search'),
     path('api/update_personnel/<int:pk>/', UpdatePersonnelView.as_view(), name='update_personnel'),
-     path('api/personnel/<int:id>/update-to-operator/', UpdatePersonnelEtatToOperatorView.as_view(), name='update-personnel-to-operator'),
+    path('api/personnel/<int:id>/update-to-operator/', UpdatePersonnelEtatToOperatorView.as_view(), name='update-personnel-to-operator'),
     path('api/modules/', ModuleListView.as_view(), name='module-list'),
     path('api/modules/create/', ModuleCreateView.as_view(), name='module-create'),
+    path('api/postes/create/', PosteCreateView.as_view(), name='poste-create'),
 
     
 
     path('api/lignes/', LigneListView.as_view(), name='ligne-list'),
+    path('api/lignes/create', CreateLigneView.as_view(), name='create-ligne'),
 
     path('api/',include('api.urls')),
     ]

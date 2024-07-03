@@ -1,7 +1,7 @@
 # serializers.py
 from rest_framework import serializers, status
 from rest_framework import serializers
-from .models import Agent, Superviseur, Ligne, Personnel, Test, Contrat ,ResponsableEcoleFormation,Formateur ,Test, Contrat 
+from .models import Agent, Superviseur, Ligne, Personnel, Test, Contrat ,ResponsableEcoleFormation,Formateur ,Test, Contrat, Poste, Module
 from django.contrib.auth import authenticate
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -80,21 +80,33 @@ class PersonnelSerializer(serializers.ModelSerializer):
         agent = AgentSerializer.create(AgentSerializer(), validated_data=agent_data)
         personnel = Personnel.objects.create(agent=agent, **validated_data)
         return personnel
+class LigneSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Ligne
+        fields = '__all__'
 
+    def validate(self, data):
+        if data.get('superviseur') is None:
+            raise serializers.ValidationError("A supervisor must be assigned to the ligne.")
+        return data
+    
 class SuperviseurSerializer(serializers.ModelSerializer):
-     
     agent = AgentSerializer()
-    ligne_id = serializers.PrimaryKeyRelatedField(queryset=Ligne.objects.all(), source='ligne')
+    lignes = serializers.PrimaryKeyRelatedField(queryset=Ligne.objects.all(), many=True)
 
     class Meta:
         model = Superviseur
-        fields = ['id', 'agent', 'ligne_id']
+        fields = ['id', 'agent', 'lignes']
 
     def create(self, validated_data):
         agent_data = validated_data.pop('agent')
         agent_data['role'] = 'Superviseur'
         agent = AgentSerializer.create(AgentSerializer(), validated_data=agent_data)
+
+        lignes_data = validated_data.pop('lignes')
         superviseur = Superviseur.objects.create(agent=agent, **validated_data)
+        superviseur.lignes.set(lignes_data)  # Set the many-to-many relation
+
         return superviseur
 
 class RHSerializer(serializers.ModelSerializer):
@@ -117,7 +129,7 @@ class PersonnelSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Personnel
-        fields = ['id', 'agent', 'etat', 'ligne']
+        fields = ['id', 'agent', 'etat', 'ligne', 'poste']
 
     def create(self, validated_data):
         agent_data = validated_data.pop('agent')
@@ -133,26 +145,12 @@ class PersonnelSerializer(serializers.ModelSerializer):
         return personnel
 class PersonnelUpdateEtatSerializer(serializers.ModelSerializer):
     ligne = serializers.PrimaryKeyRelatedField(queryset=Ligne.objects.all())
+    poste = serializers.PrimaryKeyRelatedField(queryset=Poste.objects.all())
 
     class Meta:
         model = Personnel
-        fields = ['ligne']
+        fields = ['ligne', 'poste']
 
-class SuperviseurSerializer(serializers.ModelSerializer):
-    agent = AgentSerializer()
-    ligne_id = serializers.PrimaryKeyRelatedField(queryset=Ligne.objects.all(), source='ligne')
-    ligne_name = serializers.CharField(source='ligne.name', read_only=True)
-
-    class Meta:
-        model = Superviseur
-        fields = ['id', 'agent', 'ligne_id', 'ligne_name']
-
-    def create(self, validated_data):
-        agent_data = validated_data.pop('agent')
-        agent_data['role'] = 'Superviseur'
-        agent = AgentSerializer.create(AgentSerializer(), validated_data=agent_data)
-        superviseur = Superviseur.objects.create(agent=agent, **validated_data)
-        return superviseur
 
 class DateTruncatedMonthField(serializers.ReadOnlyField):
     def to_representation(self, value):
@@ -244,7 +242,8 @@ class ContratSerializer(serializers.ModelSerializer):
 
 
 
-class LigneSerializer(serializers.ModelSerializer):
+
+class PosteSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Ligne
-        fields = '__all__'
+        model = Poste
+        fields = ['id', 'name', 'lignes']
