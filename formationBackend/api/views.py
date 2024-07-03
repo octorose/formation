@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser,JSONParser
 from django.db.models import Count
 from rest_framework import status, generics
-from .serializers import SuperviseurSerializer, PersonnelSerializer, RHSerializer, PersonnelCountSerializer, AgentSerializer, ModuleSerializer,ResponsableFormationEcoleSerializer,FormateurSerializer
+from .serializers import SuperviseurSerializer, PersonnelSerializer, RHSerializer, PersonnelCountSerializer, AgentSerializer, ModuleSerializer,ResponsableFormationEcoleSerializer,FormateurSerializer, LigneSerializer
 from rest_framework.permissions import AllowAny
 from rest_framework_simplejwt.views import TokenObtainPairView
 from .serializers import CustomTokenObtainPairSerializer
@@ -12,11 +12,6 @@ from .models import Agent, RH, ResponsableFormation, ResponsableEcoleFormation, 
 from django.contrib.auth.hashers import make_password
 from django.db.models.functions import TruncMonth, Coalesce
 from django.http import JsonResponse
-from django.http.response import Http404
-import random
-from django.core.files import File
-from rest_framework.generics import ListAPIView
-from django.conf import settings
 from .models import Module
 from rest_framework.pagination import PageNumberPagination
 from django.db.models import Q
@@ -42,7 +37,6 @@ class PersonnelSumByEtatView(APIView):
 class PersonnelCountByMonthAPIView(APIView):
  def get(self, request):
         try:
-            # Annotate queryset by month and count Personnel
             queryset = Personnel.objects.annotate(
                 month=TruncMonth('agent__date_joined')
             ).values(
@@ -50,8 +44,6 @@ class PersonnelCountByMonthAPIView(APIView):
             ).annotate(
                 count=Coalesce(Count('id'), 0)
             ).order_by('month')
-
-            # Format month names as abbreviated (Jan, Feb, etc.)
             formatted_data = []
             for entry in queryset:
                 month_name = entry['month'].strftime('%b')
@@ -59,8 +51,6 @@ class PersonnelCountByMonthAPIView(APIView):
                     'month': month_name,
                     'count': entry['count']
                 })
-
-            # Ensure all months are included with default count 0 if not present
             all_months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
             result_data = []
             for month in all_months:
@@ -200,9 +190,17 @@ class SuperviseurDeleteView(APIView):
         
 class CreatePersonnelView(APIView):
 
-
     def post(self, request):
-        serializer = PersonnelSerializer(data=request.data)
+        data = request.data
+        etat = data.get('etat')
+
+        if etat not in ['En Formation', 'Candidate', 'Candidat']:
+            return Response({
+                'status': 'error',
+                'message': 'Invalid etat value. Must be "En Formation" or "Candidate".'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        serializer = PersonnelSerializer(data=data)
         if serializer.is_valid():
             serializer.save()
             return Response({
@@ -231,8 +229,15 @@ class DeletePersonnelView(APIView):
 
 class UpdatePersonnelView(APIView):
 
-
     def put(self, request, pk, format=None):
+        data = request.data
+        etat = data.get('etat')
+
+        if etat not in ['En Formation', 'Candidate', 'Candidat']:
+            return Response({
+                'status': 'error',
+                'message': 'Invalid etat value. Must be "En Formation" or "Candidate".'
+            }, status=status.HTTP_400_BAD_REQUEST)
         try:
             personnel = get_object_or_404(Personnel, pk=pk)
             agent = personnel.agent
@@ -437,9 +442,26 @@ class ResponsableFormationEcoleSearchView(APIView):
         return Response({"message": "No query provided"}, status=status.HTTP_400_BAD_REQUEST)
 
  #///////////////////////////////////////////////////////////////////////////////////   
-class ListFormateurView(generics.ListAPIView):
-    queryset = Formateur.objects.all()
-    serializer_class = FormateurSerializer
+
+class ListFormateurView(APIView):
+
+     def get(self, request):
+        formateurs = Formateur.objects.all()
+        paginator = PageNumberPagination()
+        paginator.page_size = 10  # Number of supervisors per page
+        result_page = paginator.paginate_queryset(formateurs, request)
+        serializer = FormateurSerializer(result_page, many=True)
+        return paginator.get_paginated_response(serializer.data)
+
+# class SupervisorListView(APIView):
+#     def get(self, request):
+#         supervisors = Superviseur.objects.all()
+#         paginator = PageNumberPagination()
+#         paginator.page_size = 10  # Number of supervisors per page
+#         result_page = paginator.paginate_queryset(supervisors, request)
+#         serializer = SuperviseurSerializer(result_page, many=True)
+#         return paginator.get_paginated_response(serializer.data)
+
 
 class CreateFormateurView(APIView):
 
@@ -647,3 +669,9 @@ class UpdateContratView(APIView):
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        
+
+class LigneListView(generics.ListAPIView):
+    queryset = Ligne.objects.all()
+    serializer_class = LigneSerializer
+
