@@ -21,7 +21,6 @@ from .models import Test, Contrat
 from .serializers import TestSerializer, ContratSerializer
 
 class PersonnelSumByEtatView(APIView):
-    permission_classes = [AllowAny]
 
     def get(self, request):
         try:
@@ -178,7 +177,6 @@ class SupervisorSearchView(APIView):
             return Response(serializer.data, status=status.HTTP_200_OK)
         return Response({"message": "No query provided"}, status=status.HTTP_400_BAD_REQUEST)
 class SuperviseurDeleteView(APIView):
-    permission_classes = [AllowAny]
 
     def delete(self, request, pk, format=None):
         try:
@@ -216,7 +214,7 @@ class CreatePersonnelView(APIView):
         }, status=status.HTTP_400_BAD_REQUEST)
 
 class DeletePersonnelView(APIView):
-    permission_classes = [AllowAny]
+
 
     def delete(self, request, pk, format=None):
         try:
@@ -230,7 +228,6 @@ class DeletePersonnelView(APIView):
         
 
 class UpdatePersonnelView(APIView):
-    # permission_classes = [AllowAny]
 
     def put(self, request, pk, format=None):
         data = request.data
@@ -319,7 +316,7 @@ class PersonnelSearchView(APIView):
             return Response(serializer.data, status=status.HTTP_200_OK)
         return Response({"message": "No query provided"}, status=status.HTTP_400_BAD_REQUEST)
 class CreateRHView(APIView):
-
+    permission_classes = [AllowAny]
     def post(self, request):
         serializer = RHSerializer(data=request.data)
         if serializer.is_valid():
@@ -367,13 +364,10 @@ class ModuleListView(APIView):
 
 #///////////////////////////////////////////////////////////////////////////////////////////:
 class ResponsableFormationListView(generics.ListAPIView):
-    permission_classes = [AllowAny]  
     queryset = ResponsableEcoleFormation.objects.all()
     serializer_class = ResponsableFormationEcoleSerializer
     
 class CreateResponsableFormationEcoleView(APIView):
-    permission_classes = [AllowAny]
-
     def post(self, request):
         serializer = ResponsableFormationEcoleSerializer(data=request.data)
         if serializer.is_valid():
@@ -388,18 +382,16 @@ class CreateResponsableFormationEcoleView(APIView):
             'message': serializer.errors
         }, status=status.HTTP_400_BAD_REQUEST)
 class DeleteResponsableFormationEcoleView(APIView):
-    permission_classes = [AllowAny]
-
     def delete(self, request, pk, format=None):
         try:
             responsable_formation = get_object_or_404(ResponsableEcoleFormation, pk=pk)
+            agent = responsable_formation.agent
             responsable_formation.delete()
+            agent.delete()
             return Response({'message': 'ResponsableFormation deleted successfully.'}, status=status.HTTP_204_NO_CONTENT)
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 class UpdateResponsableEcoleFormationView(APIView):
-    permission_classes = [AllowAny]
-
     def put(self, request, pk, format=None):
         try:
             responsable_formation = get_object_or_404(ResponsableEcoleFormation, pk=pk)
@@ -441,17 +433,16 @@ class ResponsableFormationEcoleSearchView(APIView):
         query = request.query_params.get('query', '')
         if query:
             responsables = ResponsableEcoleFormation.objects.filter(
-                nom__icontains=query
-            ) | ResponsableEcoleFormation.objects.filter(
-                prenom__icontains=query
-            ) | ResponsableEcoleFormation.objects.filter(
-                email__icontains=query
+                Q(agent__nom__icontains=query) |
+                Q(agent__prenom__icontains=query) |
+                Q(agent__email__icontains=query)
             )
             serializer = ResponsableFormationEcoleSerializer(responsables, many=True)
             return Response(serializer.data, status=status.HTTP_200_OK)
         return Response({"message": "No query provided"}, status=status.HTTP_400_BAD_REQUEST)
 
  #///////////////////////////////////////////////////////////////////////////////////   
+
 class ListFormateurView(APIView):
 
      def get(self, request):
@@ -489,35 +480,32 @@ class CreateFormateurView(APIView):
         }, status=status.HTTP_400_BAD_REQUEST)
 
 class SearchFormateurView(APIView):
-    permission_classes = [AllowAny]
 
     def get(self, request):
         query = request.query_params.get('query', '')
         if query:
             formateurs = Formateur.objects.filter(
-                nom__icontains=query
-            ) | Formateur.objects.filter(
-                prenom__icontains=query
-            ) | Formateur.objects.filter(
-                email__icontains=query
+                Q(nom__icontains=query) |
+                Q(prenom__icontains=query) |
+                Q(email__icontains=query)
             )
             serializer = FormateurSerializer(formateurs, many=True)
             return Response(serializer.data, status=status.HTTP_200_OK)
         return Response({"message": "No query provided"}, status=status.HTTP_400_BAD_REQUEST)
 
 class DeleteFormateurView(APIView):
-    permission_classes = [AllowAny]
 
     def delete(self, request, pk, format=None):
         try:
             formateur = get_object_or_404(Formateur, pk=pk)
+            agent = formateur.agent
             formateur.delete()
+            agent.delete()
             return Response({'message': 'Formateur deleted successfully.'}, status=status.HTTP_204_NO_CONTENT)
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 class UpdateFormateurView(APIView):
-    permission_classes = [AllowAny]
 
     def put(self, request, pk, format=None):
         try:
@@ -558,12 +546,12 @@ class UpdateFormateurView(APIView):
 
 
 class ListTestView(generics.ListAPIView):
-    permission_classes = [AllowAny]
+
     queryset = Test.objects.all()
     serializer_class = TestSerializer
 
 class CreateTestView(APIView):
-    permission_classes = [AllowAny]
+
 
     def post(self, request):
         serializer = TestSerializer(data=request.data)
@@ -580,7 +568,7 @@ class CreateTestView(APIView):
         }, status=status.HTTP_400_BAD_REQUEST)
 
 class SearchTestView(APIView):
-    permission_classes = [AllowAny]
+
 
     def get(self, request):
         query = request.query_params.get('query', '')
@@ -595,7 +583,7 @@ class SearchTestView(APIView):
         return Response({"message": "No query provided"}, status=status.HTTP_400_BAD_REQUEST)
 
 class DeleteTestView(APIView):
-    permission_classes = [AllowAny]
+
 
     def delete(self, request, pk, format=None):
         try:
@@ -606,7 +594,7 @@ class DeleteTestView(APIView):
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 class UpdateTestView(APIView):
-    permission_classes = [AllowAny]
+
 
     def put(self, request, pk, format=None):
         try:
@@ -621,12 +609,12 @@ class UpdateTestView(APIView):
 
 # Views for Contrat
 class ListContratView(generics.ListAPIView):
-    permission_classes = [AllowAny]
+
     queryset = Contrat.objects.all()
     serializer_class = ContratSerializer
 
 class CreateContratView(APIView):
-    permission_classes = [AllowAny]
+
 
     def post(self, request):
         serializer = ContratSerializer(data=request.data)
@@ -643,7 +631,7 @@ class CreateContratView(APIView):
         }, status=status.HTTP_400_BAD_REQUEST)
 
 class SearchContratView(APIView):
-    permission_classes = [AllowAny]
+
 
     def get(self, request):
         query = request.query_params.get('query', '')
@@ -658,7 +646,7 @@ class SearchContratView(APIView):
         return Response({"message": "No query provided"}, status=status.HTTP_400_BAD_REQUEST)
 
 class DeleteContratView(APIView):
-    permission_classes = [AllowAny]
+
 
     def delete(self, request, pk, format=None):
         try:
@@ -669,7 +657,7 @@ class DeleteContratView(APIView):
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 class UpdateContratView(APIView):
-    permission_classes = [AllowAny]
+
 
     def put(self, request, pk, format=None):
         try:
