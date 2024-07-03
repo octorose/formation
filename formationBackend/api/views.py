@@ -274,11 +274,6 @@ class UpdatePersonnelEtatToOperatorView(APIView):
 
 
 class UpdatePersonnelView(APIView):
-<<<<<<< HEAD
-    # permission_classes = [AllowAny]
-=======
-
->>>>>>> 729013d (Delete AllowAny)
 
     def put(self, request, pk, format=None):
         data = request.data
