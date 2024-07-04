@@ -83,7 +83,7 @@ class PersonnelSerializer(serializers.ModelSerializer):
 class LigneSerializer(serializers.ModelSerializer):
     class Meta:
         model = Ligne
-        fields = '__all__'
+        fields = ['id', 'name']  
 
     def validate(self, data):
         if data.get('superviseur') is None:
@@ -92,20 +92,21 @@ class LigneSerializer(serializers.ModelSerializer):
     
 class SuperviseurSerializer(serializers.ModelSerializer):
     agent = AgentSerializer()
-    lignes = serializers.PrimaryKeyRelatedField(queryset=Ligne.objects.all(), many=True)
+    lignes = LigneSerializer(many=True, read_only=True)
+    lignes_ids = serializers.PrimaryKeyRelatedField(queryset=Ligne.objects.all(), many=True, write_only=True)
 
     class Meta:
         model = Superviseur
-        fields = ['id', 'agent', 'lignes']
+        fields = ['id', 'agent', 'lignes', 'lignes_ids']
 
     def create(self, validated_data):
         agent_data = validated_data.pop('agent')
         agent_data['role'] = 'Superviseur'
         agent = AgentSerializer.create(AgentSerializer(), validated_data=agent_data)
 
-        lignes_data = validated_data.pop('lignes')
+        lignes_ids = validated_data.pop('lignes_ids')
         superviseur = Superviseur.objects.create(agent=agent, **validated_data)
-        superviseur.lignes.set(lignes_data)  # Set the many-to-many relation
+        superviseur.lignes.set(lignes_ids)  # Set the many-to-many relation
 
         return superviseur
 
