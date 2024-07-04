@@ -179,7 +179,6 @@ class SupervisorSearchView(APIView):
             return Response(serializer.data, status=status.HTTP_200_OK)
         return Response({"message": "No query provided"}, status=status.HTTP_400_BAD_REQUEST)
 class SuperviseurDeleteView(APIView):
-    permission_classes = [AllowAny]
 
     def delete(self, request, pk, format=None):
         try:
