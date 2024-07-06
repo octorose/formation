@@ -5,7 +5,7 @@ from .models import Poste
 from .serializers import PosteSerializer
 from django.db.models import Count
 from rest_framework import status, generics
-from .serializers import SuperviseurSerializer, PersonnelUpdateEtatSerializer, PersonnelSerializer, RHSerializer, PersonnelCountSerializer, AgentSerializer, ModuleSerializer,ResponsableFormationEcoleSerializer,FormateurSerializer, LigneSerializer
+from .serializers import SuperviseurSerializer, PersonnelUpdateEtatSerializer, PersonnelSerializer, RHSerializer, SuperviseurSerializer, AgentSerializer, ModuleSerializer,ResponsableFormationEcoleSerializer,FormateurSerializer, LigneSerializer
 from rest_framework.permissions import AllowAny
 from rest_framework_simplejwt.views import TokenObtainPairView
 from .serializers import CustomTokenObtainPairSerializer
@@ -136,6 +136,16 @@ class RegisterView(APIView):
 
 class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer  
+
+
+from django.shortcuts import get_object_or_404
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from .models import Superviseur, Agent, Ligne
+from .serializers import SuperviseurSerializer, AgentSerializer
+
+
 class CreateSupervisorView(APIView):
 
 
@@ -153,6 +163,16 @@ class CreateSupervisorView(APIView):
             'message': serializer.errors
         }, status=status.HTTP_400_BAD_REQUEST)
         
+
+class UpdateSuperviseurView(APIView):
+    def put(self, request, pk, format=None):
+        superviseur = get_object_or_404(Superviseur, pk=pk)
+        serializer = SuperviseurSerializer(superviseur, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 class SupervisorListView(APIView):
     def get(self, request):
         supervisors = Superviseur.objects.all()

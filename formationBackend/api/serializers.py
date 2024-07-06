@@ -91,7 +91,7 @@ class LigneSerializer(serializers.ModelSerializer):
         return data
     
 class SuperviseurSerializer(serializers.ModelSerializer):
-    agent = AgentSerializer()
+    agent = AgentSerializer(required=False)  # Allow partial updates without requiring password
     lignes = LigneSerializer(many=True, read_only=True)
     lignes_ids = serializers.PrimaryKeyRelatedField(queryset=Ligne.objects.all(), many=True, write_only=True)
 
@@ -99,16 +99,26 @@ class SuperviseurSerializer(serializers.ModelSerializer):
         model = Superviseur
         fields = ['id', 'agent', 'lignes', 'lignes_ids']
 
-    def create(self, validated_data):
-        agent_data = validated_data.pop('agent')
-        agent_data['role'] = 'Superviseur'
-        agent = AgentSerializer.create(AgentSerializer(), validated_data=agent_data)
+    def update(self, instance, validated_data):
+        agent_data = validated_data.pop('agent', {})  # Handle optional agent data
 
-        lignes_ids = validated_data.pop('lignes_ids')
-        superviseur = Superviseur.objects.create(agent=agent, **validated_data)
-        superviseur.lignes.set(lignes_ids)  # Set the many-to-many relation
+        # Update agent instance if data provided
+        if agent_data:
+            agent_instance = instance.agent
+            agent_serializer = AgentSerializer(agent_instance, data=agent_data, partial=True)
+            if agent_serializer.is_valid():
+                agent_serializer.save()
+            else:
+                raise serializers.ValidationError(agent_serializer.errors)
 
-        return superviseur
+        lignes_ids = validated_data.pop('lignes_ids', [])
+
+        # Update Superviseur instance
+        instance.lignes.set(lignes_ids)  # Update many-to-many relation
+        return super().update(instance, validated_data)
+
+
+
 
 class RHSerializer(serializers.ModelSerializer):
     agent = AgentSerializer()
