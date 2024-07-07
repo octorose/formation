@@ -502,6 +502,7 @@ class ResponsableFormationEcoleSearchView(APIView):
         return Response({"message": "No query provided"}, status=status.HTTP_400_BAD_REQUEST)
 
  #///////////////////////////////////////////////////////////////////////////////////   
+
 class ListFormateurView(APIView):
 
      def get(self, request):

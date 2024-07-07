@@ -80,7 +80,6 @@ class ResponsableEcoleFormation(models.Model):
     agent = models.OneToOneField(Agent, on_delete=models.CASCADE,null=True, blank=True)
    
 
-
 class Formateur(models.Model):
     agent = models.OneToOneField(Agent, on_delete=models.CASCADE, null=True, blank=True)
     isAffecteur = models.BooleanField(default=False)
