@@ -23,5 +23,3 @@ __pycache__/
 
 # Ignore environment variables file
 .env
-
-/formation-frontend
