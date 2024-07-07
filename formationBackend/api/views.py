@@ -758,38 +758,38 @@ class PosteCreateView(generics.CreateAPIView):
     queryset = Poste.objects.all()
     serializer_class = PosteSerializer
 
-class CreatePolyvalenceView(APIView):
+# class CreatePolyvalenceView(APIView):
 
-    def post(self, request):
-        personnel_id = request.data.get('personnel')
-        try:
-            personnel = Personnel.objects.get(id=personnel_id)
-        except Personnel.DoesNotExist:
-            return Response({
-                'status': 'error',
-                'message': 'Personnel not found'
-            }, status=status.HTTP_404_NOT_FOUND)
+#     def post(self, request):
+#         personnel_id = request.data.get('personnel')
+#         try:
+#             personnel = Personnel.objects.get(id=personnel_id)
+#         except Personnel.DoesNotExist:
+#             return Response({
+#                 'status': 'error',
+#                 'message': 'Personnel not found'
+#             }, status=status.HTTP_404_NOT_FOUND)
 
-        try:
-            poste = personnel.ligne.postes.get()
-        except Poste.DoesNotExist:
-            return Response({
-                'status': 'error',
-                'message': 'Poste not found for this personnel'
-            }, status=status.HTTP_404_NOT_FOUND)
+#         try:
+#             poste = personnel.ligne.postes.get()
+#         except Poste.DoesNotExist:
+#             return Response({
+#                 'status': 'error',
+#                 'message': 'Poste not found for this personnel'
+#             }, status=status.HTTP_404_NOT_FOUND)
 
-        data = request.data.copy()
-        data['poste'] = poste.id
+#         data = request.data.copy()
+#         data['poste'] = poste.id
 
-        serializer = PolyvalenceSerializer(data=data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response({
-                'status': 'success',
-                'message': 'Polyvalence created successfully',
-                'polyvalence_id': serializer.data['id']
-            }, status=status.HTTP_201_CREATED)
-        return Response({
-            'status': 'error',
-            'message': serializer.errors
-        }, status=status.HTTP_400_BAD_REQUEST)
+#         serializer = PolyvalenceSerializer(data=data)
+#         if serializer.is_valid():
+#             serializer.save()
+#             return Response({
+#                 'status': 'success',
+#                 'message': 'Polyvalence created successfully',
+#                 'polyvalence_id': serializer.data['id']
+#             }, status=status.HTTP_201_CREATED)
+#         return Response({
+#             'status': 'error',
+#             'message': serializer.errors
+#         }, status=status.HTTP_400_BAD_REQUEST)

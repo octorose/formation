@@ -83,7 +83,7 @@ class PersonnelSerializer(serializers.ModelSerializer):
 class LigneSerializer(serializers.ModelSerializer):
     class Meta:
         model = Ligne
-        fields = ['id', 'name']  
+        fields = ['id', 'name','superviseur']
 
     def validate(self, data):
         if data.get('superviseur') is None:
@@ -98,6 +98,22 @@ class SuperviseurSerializer(serializers.ModelSerializer):
     class Meta:
         model = Superviseur
         fields = ['id', 'agent', 'lignes', 'lignes_ids']
+
+    def create(self, validated_data):
+        agent_data = validated_data.pop('agent', None)
+        lignes_ids = validated_data.pop('lignes_ids', [])
+
+        if agent_data:
+            agent_data['role'] = 'Superviseur'
+            agent = AgentSerializer.create(AgentSerializer(), validated_data=agent_data)
+            validated_data['agent'] = agent
+
+        superviseur = Superviseur.objects.create(**validated_data)
+
+        if lignes_ids:
+            superviseur.lignes.set(lignes_ids)
+
+        return superviseur
 
     def update(self, instance, validated_data):
         agent_data = validated_data.pop('agent', {})  # Handle optional agent data
@@ -116,8 +132,6 @@ class SuperviseurSerializer(serializers.ModelSerializer):
         # Update Superviseur instance
         instance.lignes.set(lignes_ids)  # Update many-to-many relation
         return super().update(instance, validated_data)
-
-
 
 
 class RHSerializer(serializers.ModelSerializer):

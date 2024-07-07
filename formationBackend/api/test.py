@@ -257,6 +257,101 @@ class PersonnelCountByMonthAPIViewTests(APITestCase):
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
+from rest_framework.test import APITestCase, APIClient
+from rest_framework import status
+from django.urls import reverse
+from .models import Agent, Formateur, Ligne, Poste, ResponsableEcoleFormation, Superviseur, Test, Personnel
+from .serializers import FormateurSerializer, AgentSerializer
+from django.contrib.auth.models import User
+
+
+class FormateurAPITestCase(APITestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.user = Agent.objects.create_user(
+            email='test@example.com',
+            role='Formateur',
+            password='password',
+            prenom='Test',
+            nom='User',
+            date_naissance='1990-01-01',
+            addresse='Test Address',
+            cin='12345678',
+            numerotel='1234567890',
+            username='testuser'
+        )
+        self.formateur = Formateur.objects.create(agent=self.user)
+        self.list_url = reverse('list-formateur')
+        self.create_url = reverse('create-formateur')
+        self.delete_url = reverse('delete-formateur', kwargs={'pk': self.formateur.id})
+        self.update_url = reverse('update-formateur', kwargs={'pk': self.formateur.id})
+        self.search_url = reverse('search-formateur')
+
+    def test_list_formateur(self):
+        response = self.client.get(self.list_url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_create_formateur(self):
+        data = {
+            'agent': {
+                'email': 'new@example.com',
+                'role': 'Formateur',
+                'prenom': 'New',
+                'nom': 'User',
+                'date_naissance': '1990-01-01',
+                'addresse': 'New Address',
+                'cin': '87654321',
+                'numerotel': '0987654321',
+                'username': 'newuser'
+            },
+            'isAffecteur': True,
+            'Type': 'Practical'
+        }
+        response = self.client.post(self.create_url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertIn('formateur_id', response.data)
+
+    def test_search_formateur(self):
+        response = self.client.get(self.search_url, {'query': 'Test'})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertGreater(len(response.data), 0)
+
+    def test_update_formateur(self):
+        data = {
+            'agent': {
+                'prenom': 'Updated'
+            },
+            'isAffecteur': False,
+            'Type': 'Theorique'
+        }
+        response = self.client.put(self.update_url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['formateur']['agent']['prenom'], 'Updated')
+
+    def test_delete_formateur(self):
+        response = self.client.delete(self.delete_url)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+
+
+class AgentModelTest(APITestCase):
+    def test_create_agent(self):
+        agent = Agent.objects.create_user(
+            email='test@example.com',
+            role='Formateur',
+            password='password',
+            prenom='Test',
+            nom='User',
+            date_naissance='1990-01-01',
+            addresse='Test Address',
+            cin='12345678',
+            numerotel='1234567890',
+            username='testuser'
+        )
+        self.assertEqual(agent.email, 'test@example.com')
+        self.assertTrue(agent.check_password('password'))
+
+
+
 
 if __name__ == '__main__':
     import unittest

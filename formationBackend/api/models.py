@@ -142,15 +142,19 @@ class Polyvalence(models.Model):
     score = models.DecimalField(max_digits=5, decimal_places=2)
     comments = models.TextField()
 
+    class Meta:
+        unique_together = ('personnel', 'poste')
+
     def save(self, *args, **kwargs):
         if self.personnel.etat != Personnel.OPERATOR_STATE:
             raise ValueError("Personnel must be in 'Operateur' state to be rated.")
-        if self.personnel.ligne not in self.supervisor.ligne.all():
+        if self.personnel.ligne not in self.supervisor.lignes.all():
             raise ValueError("Personnel must belong to the supervisor's line.")
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"Polyvalence for {self.personnel} by {self.supervisor} in {self.poste}"    
+        return f"Polyvalence for {self.personnel} by {self.supervisor} in {self.poste}"
+
 class Test(models.Model):
     type_test = models.CharField(max_length=100)
     date_test = models.DateField()
