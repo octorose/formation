@@ -5,11 +5,7 @@ from .models import Poste
 from .serializers import PosteSerializer
 from django.db.models import Count
 from rest_framework import status, generics
-<<<<<<< HEAD
-from .serializers import SuperviseurSerializer, PersonnelUpdateEtatSerializer, PersonnelSerializer, RHSerializer, SuperviseurSerializer, AgentSerializer, ModuleSerializer,ResponsableFormationEcoleSerializer,FormateurSerializer, LigneSerializer
-=======
 from .serializers import SuperviseurSerializer, PersonnelSerializer, RHSerializer, PersonnelCountSerializer, AgentSerializer, ModuleSerializer,ResponsableFormationEcoleSerializer,FormateurSerializer, LigneSerializer,PosteSerializer,PersonnelUpdateEtatSerializer
->>>>>>> 2615446 (fixing merge errors and added supervisor's lines listing)
 from rest_framework.permissions import AllowAny
 from rest_framework_simplejwt.views import TokenObtainPairView
 from .serializers import CustomTokenObtainPairSerializer
