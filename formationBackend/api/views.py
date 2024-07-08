@@ -5,11 +5,15 @@ from .models import Poste
 from .serializers import PosteSerializer
 from django.db.models import Count
 from rest_framework import status, generics
+<<<<<<< HEAD
 from .serializers import SuperviseurSerializer, PersonnelUpdateEtatSerializer, PersonnelSerializer, RHSerializer, SuperviseurSerializer, AgentSerializer, ModuleSerializer,ResponsableFormationEcoleSerializer,FormateurSerializer, LigneSerializer
+=======
+from .serializers import SuperviseurSerializer, PersonnelSerializer, RHSerializer, PersonnelCountSerializer, AgentSerializer, ModuleSerializer,ResponsableFormationEcoleSerializer,FormateurSerializer, LigneSerializer,PosteSerializer,PersonnelUpdateEtatSerializer
+>>>>>>> 2615446 (fixing merge errors and added supervisor's lines listing)
 from rest_framework.permissions import AllowAny
 from rest_framework_simplejwt.views import TokenObtainPairView
 from .serializers import CustomTokenObtainPairSerializer
-from .models import Agent, RH, ResponsableFormation, ResponsableEcoleFormation, Superviseur, Personnel, Ligne,Formateur
+from .models import Agent, RH, ResponsableFormation, ResponsableEcoleFormation, Superviseur, Personnel, Ligne,Formateur,Poste
 from django.contrib.auth.hashers import make_password
 from django.db.models.functions import TruncMonth, Coalesce
 from django.http import JsonResponse
@@ -63,6 +67,7 @@ class PersonnelCountByMonthAPIView(APIView):
 
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        
 class RegisterView(APIView):
 
 
@@ -163,6 +168,13 @@ class CreateSupervisorView(APIView):
             'message': serializer.errors
         }, status=status.HTTP_400_BAD_REQUEST)
         
+
+class SupervisorLines(generics.ListAPIView):
+    serializer_class = LigneSerializer
+
+    def get_queryset(self):
+        supervisor_id = self.kwargs['supervisor_id']
+        return Ligne.objects.filter(superviseurs__id=supervisor_id)
 
 class UpdateSuperviseurView(APIView):
     def put(self, request, pk, format=None):
@@ -276,6 +288,7 @@ class UpdatePersonnelEtatToOperatorView(APIView):
 
 class UpdatePersonnelView(APIView):
 
+    
     def put(self, request, pk, format=None):
         data = request.data
         etat = data.get('etat')
@@ -781,3 +794,4 @@ class PosteCreateView(generics.CreateAPIView):
 #             'status': 'error',
 #             'message': serializer.errors
 #         }, status=status.HTTP_400_BAD_REQUEST)
+

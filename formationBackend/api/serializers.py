@@ -1,7 +1,7 @@
 # serializers.py
 from rest_framework import serializers, status
 from rest_framework import serializers
-from .models import Agent, Superviseur, Ligne, Personnel, Test, Contrat ,ResponsableEcoleFormation,Formateur ,Test, Contrat, Poste, Module
+from .models import Agent, Superviseur, Ligne, Personnel, Test, Contrat ,ResponsableEcoleFormation,Formateur ,Test, Contrat ,Poste
 from django.contrib.auth import authenticate
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -114,6 +114,25 @@ class SuperviseurSerializer(serializers.ModelSerializer):
             superviseur.lignes.set(lignes_ids)
 
         return superviseur
+    def update(self, instance, validated_data):
+        agent_data = validated_data.pop('agent', {})  # Handle optional agent data
+
+        # Update agent instance if data provided
+        if agent_data:
+            agent_instance = instance.agent
+            agent_serializer = AgentSerializer(agent_instance, data=agent_data, partial=True)
+            if agent_serializer.is_valid():
+                agent_serializer.save()
+            else:
+                raise serializers.ValidationError(agent_serializer.errors)
+
+        lignes_ids = validated_data.pop('lignes_ids', [])
+
+        # Update Superviseur instance
+        instance.lignes.set(lignes_ids)  # Update many-to-many relation
+        return super().update(instance, validated_data)
+
+
 
     def update(self, instance, validated_data):
         agent_data = validated_data.pop('agent', {})  # Handle optional agent data
@@ -168,6 +187,7 @@ class PersonnelSerializer(serializers.ModelSerializer):
         agent = AgentSerializer.delete(AgentSerializer(), validated_data=agent_data)
         personnel = Personnel.objects.delete(agent=agent, **validated_data)
         return personnel
+
 class PersonnelUpdateEtatSerializer(serializers.ModelSerializer):
     ligne = serializers.PrimaryKeyRelatedField(queryset=Ligne.objects.all())
     poste = serializers.PrimaryKeyRelatedField(queryset=Poste.objects.all())
@@ -264,9 +284,6 @@ class ContratSerializer(serializers.ModelSerializer):
         agent, created = Agent.objects.get_or_create(**agent_data)
         contrat = Contrat.objects.create(agent=agent, **validated_data)
         return contrat
-
-
-
 
 class PosteSerializer(serializers.ModelSerializer):
     class Meta:

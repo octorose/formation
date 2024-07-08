@@ -1,7 +1,7 @@
 
 from django.urls import path, include
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView,TokenVerifyView 
-from api.views import CreateSupervisorView,UpdatePersonnelView, CreateLigneView, PersonnelSearchView, ModuleCreateView, PosteCreateView, CreatePersonnelView, RegisterView, CustomTokenObtainPairView, CreateRHView, PersonnelListView, PersonnelCountByMonthAPIView, PersonnelSumByEtatView, DeletePersonnelView, ModuleListView, SupervisorListView,SupervisorSearchView,SuperviseurDeleteView,LigneListView,PersonnelOperatorListView, UpdatePersonnelEtatToOperatorView,UpdateSuperviseurView
+from api.views import CreateSupervisorView,UpdatePersonnelView, CreateLigneView, PersonnelSearchView, ModuleCreateView, PosteCreateView, CreatePersonnelView, RegisterView, CustomTokenObtainPairView, CreateRHView, PersonnelListView, PersonnelCountByMonthAPIView, PersonnelSumByEtatView, DeletePersonnelView, ModuleListView, SupervisorListView,SupervisorSearchView,SuperviseurDeleteView,LigneListView,PersonnelOperatorListView, UpdatePersonnelEtatToOperatorView,UpdateSuperviseurView,SupervisorLines
 from django.conf import settings
 from django.conf.urls.static import static
 from api.views import CreateSupervisorView, CreatePersonnelView, RegisterView, CustomTokenObtainPairView
@@ -13,6 +13,7 @@ urlpatterns = [
     path('api/supervisors-search/', SupervisorSearchView.as_view(), name='supervisor-search'),
     path('api/supervisors/<int:pk>/', SuperviseurDeleteView.as_view(), name='delete_superviseur'),
     path('api/supervisors/update/<int:pk>/', UpdateSuperviseurView.as_view(), name='superviseur-update'),
+    path('api/supervisor-lignes/<int:supervisor_id>/', SupervisorLines.as_view(), name='supervisor-lignes'),
     path('api/create_personnel/', CreatePersonnelView.as_view(), name='create_personnel'),
     path('api/token/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
