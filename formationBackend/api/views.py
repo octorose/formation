@@ -750,6 +750,9 @@ class CreateLigneView(APIView):
             'status': 'error',
             'message': serializer.errors
         }, status=status.HTTP_400_BAD_REQUEST)
+class LigneDetailView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = Ligne.objects.all()
+    serializer_class = LigneSerializer
     
 class PosteCreateView(generics.CreateAPIView):
     queryset = Poste.objects.all()

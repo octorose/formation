@@ -81,9 +81,12 @@ class PersonnelSerializer(serializers.ModelSerializer):
         personnel = Personnel.objects.create(agent=agent, **validated_data)
         return personnel
 class LigneSerializer(serializers.ModelSerializer):
+    superviseur_nom = serializers.CharField(source='superviseur.agent.nom', read_only=True)
+    superviseur_prenom = serializers.CharField(source='superviseur.agent.prenom', read_only=True)
+
     class Meta:
         model = Ligne
-        fields = ['id', 'name','superviseur']
+        fields = ['id', 'name', 'superviseur_nom', 'superviseur_prenom', 'superviseur']
 
     def validate(self, data):
         if data.get('superviseur') is None:
