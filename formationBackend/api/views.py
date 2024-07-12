@@ -1,15 +1,16 @@
 # views.py
 from rest_framework.views import APIView
+from rest_framework import viewsets
 from rest_framework.response import Response
 from .models import Poste
 from .serializers import PosteSerializer
 from django.db.models import Count
 from rest_framework import status, generics
-from .serializers import SuperviseurSerializer, PersonnelSerializer, RHSerializer, PersonnelCountSerializer, AgentSerializer, ModuleSerializer,ResponsableFormationEcoleSerializer,FormateurSerializer, LigneSerializer,PosteSerializer,PersonnelUpdateEtatSerializer
+from .serializers import SuperviseurSerializer,PolyvalenceUpdateSerializer, PolyvalenceSerializer,  PersonnelSerializer, RHSerializer, PersonnelCountSerializer, AgentSerializer, ModuleSerializer,ResponsableFormationEcoleSerializer,FormateurSerializer, LigneSerializer,PosteSerializer,PersonnelUpdateEtatSerializer
 from rest_framework.permissions import AllowAny
 from rest_framework_simplejwt.views import TokenObtainPairView
 from .serializers import CustomTokenObtainPairSerializer
-from .models import Agent, RH, ResponsableFormation, ResponsableEcoleFormation, Superviseur, Personnel, Ligne,Formateur,Poste
+from .models import Agent, RH, Polyvalence, ResponsableFormation, ResponsableEcoleFormation, Superviseur, Personnel, Ligne,Formateur,Poste
 from django.contrib.auth.hashers import make_password
 from django.db.models.functions import TruncMonth, Coalesce
 from django.http import JsonResponse
@@ -263,6 +264,13 @@ class DeletePersonnelView(APIView):
             return Response({'message': 'Personnel and associated Agent deleted successfully.'}, status=status.HTTP_204_NO_CONTENT)
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST) 
+class LineOperators(APIView):
+    def get(self, request, line_id):
+        line = get_object_or_404(Ligne, pk=line_id)
+        operators = Personnel.objects.filter(ligne=line)
+        serializer = PersonnelSerializer(operators, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    
 
 class UpdatePersonnelEtatToOperatorView(APIView):
     def patch(self, request, *args, **kwargs):
@@ -733,7 +741,10 @@ class UpdateContratView(APIView):
 
 class LigneListView(generics.ListAPIView):
     queryset = Ligne.objects.all()
+    paginator = PageNumberPagination()
+    paginator.page_size = 3
     serializer_class = LigneSerializer
+
 
 class CreateLigneView(APIView):
 
@@ -758,39 +769,30 @@ class PosteCreateView(generics.CreateAPIView):
     queryset = Poste.objects.all()
     serializer_class = PosteSerializer
 
-# class CreatePolyvalenceView(APIView):
+class PolyvalenceViewSet(generics.CreateAPIView):
+    queryset = Polyvalence.objects.all()
+    serializer_class = PolyvalenceSerializer
 
-#     def post(self, request):
-#         personnel_id = request.data.get('personnel')
-#         try:
-#             personnel = Personnel.objects.get(id=personnel_id)
-#         except Personnel.DoesNotExist:
-#             return Response({
-#                 'status': 'error',
-#                 'message': 'Personnel not found'
-#             }, status=status.HTTP_404_NOT_FOUND)
+class PolyvalenceUpdateView(generics.RetrieveUpdateAPIView):
+    queryset = Polyvalence.objects.all()
+    serializer_class = PolyvalenceUpdateSerializer
 
-#         try:
-#             poste = personnel.ligne.postes.get()
-#         except Poste.DoesNotExist:
-#             return Response({
-#                 'status': 'error',
-#                 'message': 'Poste not found for this personnel'
-#             }, status=status.HTTP_404_NOT_FOUND)
+class UnratedOperatorsView(APIView):
 
-#         data = request.data.copy()
-#         data['poste'] = poste.id
+    def get(self, request, supervisor_id, line_id):
+        try:
+            supervisor = Superviseur.objects.get(id=supervisor_id)
+            line = supervisor.lignes.get(id=line_id)
+        except Superviseur.DoesNotExist:
+            return Response({'error': 'Supervisor not found'}, status=404)
+        except Ligne.DoesNotExist:
+            return Response({'error': 'Line not found'}, status=404)
 
-#         serializer = PolyvalenceSerializer(data=data)
-#         if serializer.is_valid():
-#             serializer.save()
-#             return Response({
-#                 'status': 'success',
-#                 'message': 'Polyvalence created successfully',
-#                 'polyvalence_id': serializer.data['id']
-#             }, status=status.HTTP_201_CREATED)
-#         return Response({
-#             'status': 'error',
-#             'message': serializer.errors
-#         }, status=status.HTTP_400_BAD_REQUEST)
+        operators = Personnel.objects.filter(ligne=line, etat=Personnel.OPERATOR_STATE)
+        rated_operators = Polyvalence.objects.filter(personnel__in=operators).values_list('personnel_id', flat=True)
+        unrated_operators = operators.exclude(id__in=rated_operators)
+
+        serializer = PersonnelSerializer(unrated_operators, many=True)
+        return Response(serializer.data)
+
 

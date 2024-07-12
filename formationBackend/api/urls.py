@@ -20,8 +20,10 @@ from .views import (
     UpdateFormateurView,
     DeleteFormateurView,
     ListFormateurView,
-    SearchFormateurView
+    SearchFormateurView,
 )
+
+
 urlpatterns = [
     path('api/tests/', ListTestView.as_view(), name='test-list'),
     path('api/tests/create/', CreateTestView.as_view(), name='test-create'),

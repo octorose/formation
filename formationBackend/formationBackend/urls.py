@@ -1,7 +1,7 @@
 
 from django.urls import path, include
-from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView,TokenVerifyView 
-from api.views import CreateSupervisorView,UpdatePersonnelView, CreateLigneView, PersonnelSearchView, ModuleCreateView, PosteCreateView, CreatePersonnelView, RegisterView, CustomTokenObtainPairView, CreateRHView, PersonnelListView, PersonnelCountByMonthAPIView, PersonnelSumByEtatView, DeletePersonnelView, ModuleListView, SupervisorListView,SupervisorSearchView,SuperviseurDeleteView,LigneListView,PersonnelOperatorListView, UpdatePersonnelEtatToOperatorView,UpdateSuperviseurView,SupervisorLines,LigneDetailView
+from rest_framework_simplejwt.views import  TokenRefreshView
+from api.views import CreateSupervisorView,UpdatePersonnelView, CreateLigneView, PersonnelSearchView, PolyvalenceUpdateView,ModuleCreateView, PosteCreateView, CreatePersonnelView, RegisterView, CustomTokenObtainPairView, CreateRHView, PersonnelListView, PersonnelCountByMonthAPIView, PersonnelSumByEtatView, DeletePersonnelView, ModuleListView, SupervisorListView,SupervisorSearchView,SuperviseurDeleteView,LigneListView,PersonnelOperatorListView, UpdatePersonnelEtatToOperatorView,UpdateSuperviseurView,SupervisorLines,LigneDetailView,LineOperators, PolyvalenceViewSet, UnratedOperatorsView
 from django.conf import settings
 from django.conf.urls.static import static
 from api.views import CreateSupervisorView, CreatePersonnelView, RegisterView, CustomTokenObtainPairView
@@ -21,6 +21,7 @@ urlpatterns = [
     path('api/create_rh/', CreateRHView.as_view(), name='create_rh'),
     path('api/personnel/', PersonnelListView.as_view(), name='personnel-list'),
     path('api/operators/', PersonnelOperatorListView.as_view(), name='personnel-operators'),
+    path('api/line-operateurs/<int:line_id>/', LineOperators.as_view(), name='line-operateurs'),
     path('api/personnel-count-by-month/', PersonnelCountByMonthAPIView.as_view(), name='personnel-count-by-month'),
     path('api/personnel-sum-by-etat/', PersonnelSumByEtatView.as_view(), name='personnel-sum-by-etat'),
     path('api/delete_personnel/<int:pk>/', DeletePersonnelView.as_view(), name='delete_personnel'),
@@ -36,6 +37,11 @@ urlpatterns = [
     path('api/lignes/', LigneListView.as_view(), name='ligne-list'),
     path('api/lignes/create', CreateLigneView.as_view(), name='create-ligne'),
     path('api/lignes/<int:pk>/', LigneDetailView.as_view(), name='ligne-detail'),
+   
+    path('api/polyvalences/', PolyvalenceViewSet.as_view(), name='polyvalence-create'),
+    path('api/polyvalences/<int:pk>/', PolyvalenceUpdateView.as_view(), name='polyvalence-update'),
+   
+    path('unrated_operators/<int:supervisor_id>/<int:line_id>/', UnratedOperatorsView.as_view(), name='unrated-operators'),
 
     path('api/',include('api.urls')),
     ]
