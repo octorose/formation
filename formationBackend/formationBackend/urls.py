@@ -1,7 +1,7 @@
 
 from django.urls import path, include
 from rest_framework_simplejwt.views import  TokenRefreshView
-from api.views import CreateSupervisorView,UpdatePersonnelView, CreateLigneView, PersonnelSearchView, PolyvalenceUpdateView,ModuleCreateView, PosteCreateView, CreatePersonnelView, RegisterView, CustomTokenObtainPairView, CreateRHView, PersonnelListView, PersonnelCountByMonthAPIView, PersonnelSumByEtatView, DeletePersonnelView, ModuleListView, SupervisorListView,SupervisorSearchView,SuperviseurDeleteView,LigneListView,PersonnelOperatorListView, UpdatePersonnelEtatToOperatorView,UpdateSuperviseurView,SupervisorLines,LigneDetailView,LineOperators, PolyvalenceViewSet, UnratedOperatorsView
+from api.views import CreateSupervisorView,UpdatePersonnelView, CreateLigneView, PersonnelSearchView, PolyvalenceUpdateView,ModuleCreateView, PosteCreateView, CreatePersonnelView, RegisterView, CustomTokenObtainPairView, CreateRHView, PersonnelListView, PersonnelCountByMonthAPIView, PersonnelSumByEtatView, DeletePersonnelView, ModuleListView, SupervisorListView,SupervisorSearchView,SuperviseurDeleteView,LigneListView,PersonnelOperatorListView, UpdatePersonnelEtatToOperatorView,UpdateSuperviseurView,SupervisorLines,LigneDetailView,LineOperators, PolyvalenceViewSet, UnratedOperatorsByLineView,RatedOperatorsByLineView
 from django.conf import settings
 from django.conf.urls.static import static
 from api.views import CreateSupervisorView, CreatePersonnelView, RegisterView, CustomTokenObtainPairView
@@ -41,8 +41,9 @@ urlpatterns = [
     path('api/polyvalences/', PolyvalenceViewSet.as_view(), name='polyvalence-create'),
     path('api/polyvalences/<int:pk>/', PolyvalenceUpdateView.as_view(), name='polyvalence-update'),
    
-    path('unrated_operators/<int:supervisor_id>/<int:line_id>/', UnratedOperatorsView.as_view(), name='unrated-operators'),
-
+    path('api/unrated-operators/<int:ligne_id>/', UnratedOperatorsByLineView.as_view(), name='unrated-operators-by-line'),
+     path('api/rated-operators/<int:ligne_id>/', RatedOperatorsByLineView.as_view(), name='rated-operators-by-line'),
+    
     path('api/',include('api.urls')),
     ]
 

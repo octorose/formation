@@ -777,22 +777,39 @@ class PolyvalenceUpdateView(generics.RetrieveUpdateAPIView):
     queryset = Polyvalence.objects.all()
     serializer_class = PolyvalenceUpdateSerializer
 
-class UnratedOperatorsView(APIView):
-
-    def get(self, request, supervisor_id, line_id):
+class UnratedOperatorsByLineView(APIView):
+    def get(self, request, ligne_id):
         try:
-            supervisor = Superviseur.objects.get(id=supervisor_id)
-            line = supervisor.lignes.get(id=line_id)
-        except Superviseur.DoesNotExist:
-            return Response({'error': 'Supervisor not found'}, status=404)
+            ligne = Ligne.objects.get(id=ligne_id)
         except Ligne.DoesNotExist:
-            return Response({'error': 'Line not found'}, status=404)
-
-        operators = Personnel.objects.filter(ligne=line, etat=Personnel.OPERATOR_STATE)
-        rated_operators = Polyvalence.objects.filter(personnel__in=operators).values_list('personnel_id', flat=True)
-        unrated_operators = operators.exclude(id__in=rated_operators)
+            return Response({'error': 'Ligne not found'}, status=status.HTTP_404_NOT_FOUND)
+    
+        operators_in_line = Personnel.objects.filter(ligne=ligne, etat=Personnel.OPERATOR_STATE)
+        
+        # Most important part of the view
+        unrated_operators = []
+        for operator in operators_in_line:
+            if not Polyvalence.objects.filter(personnel=operator, poste=operator.poste, ligne=ligne).exists():
+                unrated_operators.append(operator)
+        ########################################
 
         serializer = PersonnelSerializer(unrated_operators, many=True)
-        return Response(serializer.data)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
+class RatedOperatorsByLineView(APIView):
+    def get(self, request, ligne_id):
+        try:
+            ligne = Ligne.objects.get(id=ligne_id)
+        except Ligne.DoesNotExist:
+            return Response({'error': 'Ligne not found'}, status=status.HTTP_404_NOT_FOUND)
+        
+        operators_in_line = Personnel.objects.filter(ligne=ligne, etat=Personnel.OPERATOR_STATE)
+        
+        rated_operators = []
+        for operator in operators_in_line:
+            if Polyvalence.objects.filter(personnel=operator, poste=operator.poste, ligne=ligne).exists():
+                rated_operators.append(operator)
+        
+        serializer = PersonnelSerializer(rated_operators, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)

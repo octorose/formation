@@ -193,10 +193,17 @@ class RHSerializer(serializers.ModelSerializer):
 
 class PersonnelSerializer(serializers.ModelSerializer):
     agent = AgentSerializer()
-
+    score = serializers.SerializerMethodField()
     class Meta:
         model = Personnel
-        fields = ['id', 'agent', 'etat', 'ligne', 'poste']
+        fields = ['id', 'agent', 'etat', 'ligne', 'poste', 'score']
+    
+    def get_score(self, obj):
+        try:
+            polyvalence = Polyvalence.objects.get(personnel=obj, poste=obj.poste, ligne=obj.ligne)
+            return polyvalence.score
+        except Polyvalence.DoesNotExist:
+            return None
 
     def create(self, validated_data):
         agent_data = validated_data.pop('agent')
