@@ -189,10 +189,14 @@ class RHSerializer(serializers.ModelSerializer):
         agent = AgentSerializer.create(AgentSerializer(), validated_data=agent_data)
         rh = RH.objects.create(agent=agent, **validated_data)
         return rh
-
+class PosteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Poste
+        fields = ['id', 'name', 'lignes']
 
 class PersonnelSerializer(serializers.ModelSerializer):
     agent = AgentSerializer()
+    poste = PosteSerializer()
     score = serializers.SerializerMethodField()
     class Meta:
         model = Personnel
@@ -315,10 +319,7 @@ class ContratSerializer(serializers.ModelSerializer):
         contrat = Contrat.objects.create(agent=agent, **validated_data)
         return contrat
 
-class PosteSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Poste
-        fields = ['id', 'name', 'lignes']
+
 
 class PolyvalenceSerializer(serializers.ModelSerializer):
     class Meta:
