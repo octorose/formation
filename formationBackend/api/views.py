@@ -190,6 +190,12 @@ class SupervisorListView(APIView):
         result_page = paginator.paginate_queryset(supervisors, request)
         serializer = SuperviseurSerializer(result_page, many=True)
         return paginator.get_paginated_response(serializer.data)
+
+class Supervisorlisntingnopage(APIView):
+    def get(self, request):
+        supervisors = Superviseur.objects.all()
+        serializer = SuperviseurSerializer(supervisors, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
     
 class SupervisorSearchView(APIView):
     def get(self, request):
