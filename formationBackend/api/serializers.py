@@ -1,7 +1,7 @@
 # serializers.py
 from rest_framework import serializers, status
 from rest_framework import serializers
-from .models import Agent, Superviseur, Ligne, Personnel, Test, Contrat ,ResponsableEcoleFormation,Formateur ,Test, Contrat ,Poste
+from .models import Agent, Superviseur, Ligne, Personnel, Polyvalence, Test, Contrat ,ResponsableEcoleFormation,Formateur ,Test, Contrat ,Poste,ResponsableFormation
 from django.contrib.auth import authenticate
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -27,7 +27,9 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
                 data = super().validate(attrs)
                 data.update({
                     'username': user.username,
-                    'role': user.role  # Include the role in the response
+                    'role': user.role,
+                    'user_id': user.id,
+                    'role_specific_id': self.get_role_specific_id(user)  # Include the role-specific ID in the response
                 })
                 return data
 
@@ -37,8 +39,26 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     def get_token(cls, user):
         token = super().get_token(user)
         token['username'] = user.username
-        token['role'] = user.role  # Include the role in the token payload
+        token['role'] = user.role
+        token['user_id'] = user.id
+        token['role_specific_id'] = cls.get_role_specific_id(user)  # Include the role-specific ID in the token payload
         return token
+
+    @staticmethod
+    def get_role_specific_id(user):
+        if user.role == 'RH':
+            return RH.objects.get(agent=user).id
+        elif user.role == 'ResponsableFormation':
+            return ResponsableFormation.objects.get(agent=user).id
+        elif user.role == 'ResponsableEcoleFormation':
+            return ResponsableEcoleFormation.objects.get(agent=user).id
+        elif user.role == 'Formateur':
+            return Formateur.objects.get(agent=user).id
+        elif user.role == 'Superviseur':
+            return Superviseur.objects.get(agent=user).id
+        elif user.role == 'Personnel':
+            return Personnel.objects.get(agent=user).id
+        return None
     
 
 class AgentSerializer(serializers.ModelSerializer):
@@ -81,9 +101,12 @@ class PersonnelSerializer(serializers.ModelSerializer):
         personnel = Personnel.objects.create(agent=agent, **validated_data)
         return personnel
 class LigneSerializer(serializers.ModelSerializer):
+    superviseur_nom = serializers.CharField(source='superviseur.agent.nom', read_only=True)
+    superviseur_prenom = serializers.CharField(source='superviseur.agent.prenom', read_only=True)
+
     class Meta:
         model = Ligne
-        fields = ['id', 'name','superviseur']
+        fields = ['id', 'name', 'superviseur_nom', 'superviseur_prenom', 'superviseur']
 
     def validate(self, data):
         if data.get('superviseur') is None:
@@ -166,14 +189,25 @@ class RHSerializer(serializers.ModelSerializer):
         agent = AgentSerializer.create(AgentSerializer(), validated_data=agent_data)
         rh = RH.objects.create(agent=agent, **validated_data)
         return rh
-
+class PosteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Poste
+        fields = ['id', 'name', 'lignes']
 
 class PersonnelSerializer(serializers.ModelSerializer):
     agent = AgentSerializer()
-
+    poste = PosteSerializer()
+    score = serializers.SerializerMethodField()
     class Meta:
         model = Personnel
-        fields = ['id', 'agent', 'etat', 'ligne', 'poste']
+        fields = ['id', 'agent', 'etat', 'ligne', 'poste', 'score']
+    
+    def get_score(self, obj):
+        try:
+            polyvalence = Polyvalence.objects.get(personnel=obj, poste=obj.poste, ligne=obj.ligne)
+            return polyvalence.score
+        except Polyvalence.DoesNotExist:
+            return None
 
     def create(self, validated_data):
         agent_data = validated_data.pop('agent')
@@ -285,7 +319,27 @@ class ContratSerializer(serializers.ModelSerializer):
         contrat = Contrat.objects.create(agent=agent, **validated_data)
         return contrat
 
-class PosteSerializer(serializers.ModelSerializer):
+
+
+class PolyvalenceSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Poste
-        fields = ['id', 'name', 'lignes']
+        model = Polyvalence
+        fields = '__all__'
+
+    def validate(self, data):
+        personnel = data['personnel']
+        supervisor = data['supervisor']
+        
+        # Check if personnel is an operator
+        if personnel.etat != Personnel.OPERATOR_STATE:
+            raise serializers.ValidationError("Personnel must be in 'Operateur' state to be rated.")
+        
+        # Check if personnel belongs to the supervisor's line
+        if personnel.ligne not in supervisor.lignes.all():
+            raise serializers.ValidationError("Personnel must belong to the supervisor's line.")
+        
+        return data
+class PolyvalenceUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Polyvalence
+        fields = ['score', 'comments']

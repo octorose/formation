@@ -135,15 +135,17 @@ class Poste(models.Model):
         return self.name
 
 
+
 class Polyvalence(models.Model):
     supervisor = models.ForeignKey(Superviseur, on_delete=models.CASCADE)
     personnel = models.ForeignKey(Personnel, on_delete=models.CASCADE)
     poste = models.ForeignKey(Poste, on_delete=models.CASCADE)
+    ligne = models.ForeignKey(Ligne, on_delete=models.CASCADE)
     score = models.DecimalField(max_digits=5, decimal_places=2)
     comments = models.TextField()
 
     class Meta:
-        unique_together = ('personnel', 'poste')
+        unique_together = ('personnel', 'poste', 'ligne')
 
     def save(self, *args, **kwargs):
         if self.personnel.etat != Personnel.OPERATOR_STATE:
@@ -153,7 +155,8 @@ class Polyvalence(models.Model):
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"Polyvalence for {self.personnel} by {self.supervisor} in {self.poste}"
+        return f"Polyvalence for {self.personnel} by {self.supervisor} in {self.poste} on {self.ligne}"
+
 
 class Test(models.Model):
     type_test = models.CharField(max_length=100)
