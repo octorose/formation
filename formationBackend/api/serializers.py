@@ -189,10 +189,34 @@ class RHSerializer(serializers.ModelSerializer):
         agent = AgentSerializer.create(AgentSerializer(), validated_data=agent_data)
         rh = RH.objects.create(agent=agent, **validated_data)
         return rh
+    
 class PosteSerializer(serializers.ModelSerializer):
+    lignes = LigneSerializer(many=True)
+
     class Meta:
         model = Poste
-        fields = ['id', 'name', 'lignes']
+        fields = ['id', 'name', 'type', 'lignes']
+
+    def create(self, validated_data):
+        lignes_data = validated_data.pop('lignes')
+        poste = Poste.objects.create(**validated_data)
+        for ligne_data in lignes_data:
+            ligne, created = Ligne.objects.get_or_create(**ligne_data)
+            poste.lignes.add(ligne)
+        return poste
+    def update(self, instance, validated_data):
+        lignes_data = validated_data.pop('lignes')
+        instance.name = validated_data.get('name', instance.name)
+        instance.type = validated_data.get('type', instance.type)
+        instance.save()
+
+        # Clear existing relationships
+        instance.lignes.clear()
+        for ligne_data in lignes_data:
+            ligne, created = Ligne.objects.get_or_create(**ligne_data)
+            instance.lignes.add(ligne)
+
+        return instance
 
 class PersonnelSerializer(serializers.ModelSerializer):
     agent = AgentSerializer()

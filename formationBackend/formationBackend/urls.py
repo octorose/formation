@@ -30,7 +30,6 @@ urlpatterns = [
     path('api/personnel/<int:id>/update-to-operator/', UpdatePersonnelEtatToOperatorView.as_view(), name='update-personnel-to-operator'),
     path('api/modules/', ModuleListView.as_view(), name='module-list'),
     path('api/modules/create/', ModuleCreateView.as_view(), name='module-create'),
-    path('api/postes/create/', PosteCreateView.as_view(), name='poste-create'),
 
     
 

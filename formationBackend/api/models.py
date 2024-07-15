@@ -128,14 +128,19 @@ class Personnel(models.Model):
         return f"{self.agent.prenom} {self.agent.nom} ({self.agent.role})"
 
 class Poste(models.Model):
+    TYPE_CHOICES = [
+        ('simple_sans_risque', 'Simple sans risque'),
+        ('simple_avec_risque', 'Simple avec des risques'),
+        ('compliqué_sans_risque', 'Compliqué sans risque'),
+        ('compliqué_avec_risque', 'Compliqué avec le risque'),
+    ]
+
     name = models.CharField(max_length=100)
     lignes = models.ManyToManyField('Ligne', related_name='postes')
+    type = models.CharField(max_length=50, choices=TYPE_CHOICES, default='simple_sans_risque')
 
     def __str__(self):
         return self.name
-
-
-
 class Polyvalence(models.Model):
     supervisor = models.ForeignKey(Superviseur, on_delete=models.CASCADE)
     personnel = models.ForeignKey(Personnel, on_delete=models.CASCADE)
