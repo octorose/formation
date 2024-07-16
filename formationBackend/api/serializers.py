@@ -212,9 +212,17 @@ class PersonnelSerializer(serializers.ModelSerializer):
     agent = AgentSerializer()
     poste = PosteSerializer()
     score = serializers.SerializerMethodField()
+    comments = serializers.SerializerMethodField()
     class Meta:
         model = Personnel
-        fields = ['id', 'agent', 'etat', 'ligne', 'poste', 'score']
+        fields = ['id', 'agent', 'etat', 'ligne', 'poste', 'score', 'comments']
+
+    def get_comments(self, obj):
+        try:
+            polyvalence = Polyvalence.objects.get(personnel=obj, poste=obj.poste, ligne=obj.ligne)
+            return polyvalence.comments
+        except Polyvalence.DoesNotExist:
+            return None
     
     def get_score(self, obj):
         try:
