@@ -746,7 +746,6 @@ class UpdateContratView(APIView):
         
 
 class LigneListView(generics.ListAPIView):
-    permission_classes=[AllowAny]
     queryset = Ligne.objects.all()
     paginator = PageNumberPagination()
     paginator.page_size = 3
@@ -773,7 +772,6 @@ class LigneDetailView(generics.RetrieveUpdateDestroyAPIView):
  
 #////////////////////////////////////////////////////////////////////////////   
 class PosteCreateView(APIView):
-    permission_classes=[AllowAny]
     def post(self, request):
         serializer = PosteSerializer(data=request.data)
         if serializer.is_valid():
@@ -790,18 +788,24 @@ class PosteCreateView(APIView):
 
         
 class UpdatePosteView(APIView):
+
     def put(self, request, pk, format=None):
         try:
             poste = get_object_or_404(Poste, pk=pk)
-            lignes_data = request.data.pop('lignes', [])
+            
+            # Assurez-vous que lignes_ids est une liste vide si non fourni
+            lignes_data = request.data.get('lignes_ids', [])
 
             poste_serializer = PosteSerializer(poste, data=request.data, partial=True)
             if poste_serializer.is_valid():
                 updated_poste = poste_serializer.save()
 
-                poste.lignes.clear()  # Clear existing lignes related to poste
-                for ligne_data in lignes_data:
-                    ligne, created = Ligne.objects.get_or_create(**ligne_data)
+                # Effacez les lignes existantes associées au poste
+                poste.lignes.clear()
+
+                for ligne_id in lignes_data:
+                    # Utilisation directe de l'ID pour optimiser la requête
+                    ligne, created = Ligne.objects.get_or_create(id=ligne_id)
                     poste.lignes.add(ligne)
 
                 return Response({
@@ -810,6 +814,10 @@ class UpdatePosteView(APIView):
             else:
                 return Response({'poste_errors': poste_serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
+        except Poste.DoesNotExist:
+            return Response({'error': 'Poste not found'}, status=status.HTTP_404_NOT_FOUND)
+        except Ligne.DoesNotExist:
+            return Response({'error': 'Ligne not found'}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
