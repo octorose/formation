@@ -136,7 +136,7 @@ class Poste(models.Model):
     ]
 
     name = models.CharField(max_length=100)
-    lignes = models.ManyToManyField('Ligne', related_name='postes')
+    lignes = models.ManyToManyField(Ligne, related_name='postes')
     type = models.CharField(max_length=50, choices=TYPE_CHOICES, default='simple_sans_risque')
 
     def __str__(self):

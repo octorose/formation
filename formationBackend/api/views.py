@@ -740,6 +740,7 @@ class UpdateContratView(APIView):
         
 
 class LigneListView(generics.ListAPIView):
+    permission_classes=[AllowAny]
     queryset = Ligne.objects.all()
     paginator = PageNumberPagination()
     paginator.page_size = 3
@@ -766,6 +767,7 @@ class LigneDetailView(generics.RetrieveUpdateDestroyAPIView):
  
 #////////////////////////////////////////////////////////////////////////////   
 class PosteCreateView(APIView):
+    permission_classes=[AllowAny]
     def post(self, request):
         serializer = PosteSerializer(data=request.data)
         if serializer.is_valid():
@@ -783,12 +785,27 @@ class PosteCreateView(APIView):
         
 class UpdatePosteView(APIView):
     def put(self, request, pk, format=None):
-        poste = get_object_or_404(Poste, pk=pk)
-        serializer = PosteSerializer(poste, data=request.data, partial=True)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            poste = get_object_or_404(Poste, pk=pk)
+            lignes_data = request.data.pop('lignes', [])
+
+            poste_serializer = PosteSerializer(poste, data=request.data, partial=True)
+            if poste_serializer.is_valid():
+                updated_poste = poste_serializer.save()
+
+                poste.lignes.clear()  # Clear existing lignes related to poste
+                for ligne_data in lignes_data:
+                    ligne, created = Ligne.objects.get_or_create(**ligne_data)
+                    poste.lignes.add(ligne)
+
+                return Response({
+                    'poste': poste_serializer.data,
+                }, status=status.HTTP_200_OK)
+            else:
+                return Response({'poste_errors': poste_serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 class PosteListView(APIView):
     def get(self, request):
