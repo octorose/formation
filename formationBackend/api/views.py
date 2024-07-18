@@ -869,12 +869,11 @@ class UnratedOperatorsByLineView(APIView):
     
         operators_in_line = Personnel.objects.filter(ligne=ligne, etat=Personnel.OPERATOR_STATE)
         
-        # Most important part of the view
         unrated_operators = []
         for operator in operators_in_line:
             if not Polyvalence.objects.filter(personnel=operator, poste=operator.poste, ligne=ligne).exists():
                 unrated_operators.append(operator)
-        ########################################
+
 
         serializer = PersonnelSerializer(unrated_operators, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
