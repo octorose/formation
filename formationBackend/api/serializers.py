@@ -207,27 +207,19 @@ class PosteSerializer(serializers.ModelSerializer):
         poste.lignes.set(lignes_ids)
         return poste
 
-  
 class PersonnelSerializer(serializers.ModelSerializer):
     agent = AgentSerializer()
-    poste = PosteSerializer()
-    score = serializers.SerializerMethodField()
-    comments = serializers.SerializerMethodField()
+    poste = PosteSerializer(required=False, allow_null=True)
+    polyvalence = serializers.SerializerMethodField()
+
     class Meta:
         model = Personnel
-        fields = ['id', 'agent', 'etat', 'ligne', 'poste', 'score', 'comments']
+        fields = ['id', 'agent', 'etat', 'ligne', 'poste', 'polyvalence']
 
-    def get_comments(self, obj):
+    def get_polyvalence(self, obj):
         try:
             polyvalence = Polyvalence.objects.get(personnel=obj, poste=obj.poste, ligne=obj.ligne)
-            return polyvalence.comments
-        except Polyvalence.DoesNotExist:
-            return None
-    
-    def get_score(self, obj):
-        try:
-            polyvalence = Polyvalence.objects.get(personnel=obj, poste=obj.poste, ligne=obj.ligne)
-            return polyvalence.score
+            return PolyvalenceSerializer(polyvalence).data
         except Polyvalence.DoesNotExist:
             return None
 
@@ -237,13 +229,14 @@ class PersonnelSerializer(serializers.ModelSerializer):
         agent = AgentSerializer.create(AgentSerializer(), validated_data=agent_data)
         personnel = Personnel.objects.create(agent=agent, **validated_data)
         return personnel
+
     def delete(self, validated_data):
         agent_data = validated_data.pop('agent')
         agent_data['role'] = 'Personnel'
         agent = AgentSerializer.delete(AgentSerializer(), validated_data=agent_data)
         personnel = Personnel.objects.delete(agent=agent, **validated_data)
         return personnel
-
+    
 class PersonnelUpdateEtatSerializer(serializers.ModelSerializer):
     ligne = serializers.PrimaryKeyRelatedField(queryset=Ligne.objects.all())
     poste = serializers.PrimaryKeyRelatedField(queryset=Poste.objects.all())

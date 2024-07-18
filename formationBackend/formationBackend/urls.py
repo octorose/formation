@@ -1,7 +1,7 @@
 
 from django.urls import path, include
 from rest_framework_simplejwt.views import  TokenRefreshView
-from api.views import CreateSupervisorView,UpdatePersonnelView, CreateLigneView, PersonnelSearchView, PolyvalenceUpdateView,ModuleCreateView, PosteCreateView, CreatePersonnelView, RegisterView, CustomTokenObtainPairView, CreateRHView, PersonnelListView, PersonnelCountByMonthAPIView, PersonnelSumByEtatView, DeletePersonnelView, ModuleListView, SupervisorListView,SupervisorSearchView,SuperviseurDeleteView,LigneListView,PersonnelOperatorListView, UpdatePersonnelEtatToOperatorView,UpdateSuperviseurView,SupervisorLines,LigneDetailView,LineOperators, PolyvalenceViewSet, UnratedOperatorsByLineView,RatedOperatorsByLineView, Supervisorlisntingnopage
+from api.views import CreateSupervisorView,UpdatePersonnelView, CreateLigneView, PersonnelSearchView, PolyvalenceUpdateView,ModuleCreateView, EnFormationListView, CreatePersonnelView, RegisterView, CustomTokenObtainPairView, CreateRHView, PersonnelListView, PersonnelCountByMonthAPIView, PersonnelSumByEtatView, DeletePersonnelView, ModuleListView, SupervisorListView,SupervisorSearchView,SuperviseurDeleteView,LigneListView,PersonnelOperatorListView, UpdatePersonnelEtatToOperatorView,UpdateSuperviseurView,SupervisorLines,LigneDetailView,LineOperators, PolyvalenceViewSet, UnratedOperatorsByLineView,RatedOperatorsByLineView, Supervisorlisntingnopage
 from django.conf import settings
 from django.conf.urls.static import static
 from api.views import CreateSupervisorView, CreatePersonnelView, RegisterView, CustomTokenObtainPairView
@@ -21,6 +21,7 @@ urlpatterns = [
     path('api/register/', RegisterView.as_view(), name='register'),
     path('api/create_rh/', CreateRHView.as_view(), name='create_rh'),
     path('api/personnel/', PersonnelListView.as_view(), name='personnel-list'),
+    path('api/En-Formation/', EnFormationListView.as_view(), name='en-formation-list'),
     path('api/operators/', PersonnelOperatorListView.as_view(), name='personnel-operators'),
     path('api/line-operateurs/<int:line_id>/', LineOperators.as_view(), name='line-operateurs'),
     path('api/personnel-count-by-month/', PersonnelCountByMonthAPIView.as_view(), name='personnel-count-by-month'),
@@ -38,12 +39,18 @@ urlpatterns = [
     path('api/lignes/create', CreateLigneView.as_view(), name='create-ligne'),
     path('api/lignes/<int:pk>/', LigneDetailView.as_view(), name='ligne-detail'),
    
+
+   
     path('api/polyvalences/', PolyvalenceViewSet.as_view(), name='polyvalence-create'),
     path('api/polyvalences/<int:pk>/', PolyvalenceUpdateView.as_view(), name='polyvalence-update'),
    
+
+
     path('api/unrated-operators/<int:ligne_id>/', UnratedOperatorsByLineView.as_view(), name='unrated-operators-by-line'),
-     path('api/rated-operators/<int:ligne_id>/', RatedOperatorsByLineView.as_view(), name='rated-operators-by-line'),
+    path('api/rated-operators/<int:ligne_id>/', RatedOperatorsByLineView.as_view(), name='rated-operators-by-line'),
     
+
+
     path('api/',include('api.urls')),
     ]
 
