@@ -232,7 +232,7 @@ class CreatePersonnelView(APIView):
         etat = data.get('etat')
         ligne = data.get('ligne')
         poste = data.get('poste')
-
+        print(etat)
         if etat not in ['En Formation', 'Candidate', 'Candidat' ,'Operateur']:
             return Response({
                 'status': 'error',
@@ -420,6 +420,12 @@ class PersonnelOperatorListView(generics.ListAPIView):
     def get_queryset(self):
         return Personnel.objects.filter(etat=Personnel.OPERATOR_STATE)
     
+class EnFormationListView(generics.ListAPIView):
+    serializer_class = PersonnelSerializer
+
+    def get_queryset(self):
+        return Personnel.objects.filter(etat=Personnel.EN_FORMATION_STATE)
+    
 class ModuleCreateView(APIView):
     def post(self, request):
         serializer = ModuleSerializer(data=request.data)
@@ -444,8 +450,6 @@ class ModuleListView(APIView):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-
-#///////////////////////////////////////////////////////////////////////////////////////////:
 class ResponsableFormationListView(generics.ListAPIView):
     queryset = ResponsableEcoleFormation.objects.all()
     serializer_class = ResponsableFormationEcoleSerializer
@@ -524,7 +528,6 @@ class ResponsableFormationEcoleSearchView(APIView):
             return Response(serializer.data, status=status.HTTP_200_OK)
         return Response({"message": "No query provided"}, status=status.HTTP_400_BAD_REQUEST)
 
- #///////////////////////////////////////////////////////////////////////////////////   
 
 class ListFormateurView(APIView):
 
@@ -859,6 +862,8 @@ class PolyvalenceViewSet(generics.CreateAPIView):
 class PolyvalenceUpdateView(generics.RetrieveUpdateAPIView):
     queryset = Polyvalence.objects.all()
     serializer_class = PolyvalenceUpdateSerializer
+
+
 
 class UnratedOperatorsByLineView(APIView):
     def get(self, request, ligne_id):
