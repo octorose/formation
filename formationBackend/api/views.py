@@ -826,7 +826,12 @@ class UpdatePosteView(APIView):
 
 class PosteListView(APIView):
     def get(self, request):
-        postes = Poste.objects.all()
+        supervisor_id = request.query_params.get('supervisor_id')
+        if supervisor_id:
+            postes = Poste.objects.filter(lignes__superviseurs__id=supervisor_id).distinct()
+        else:
+            postes = Poste.objects.all()
+            
         paginator = PageNumberPagination()
         paginator.page_size = 10  # Number of postes per page
         result_page = paginator.paginate_queryset(postes, request)
