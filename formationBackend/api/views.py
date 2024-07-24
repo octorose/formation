@@ -68,57 +68,7 @@ class PersonnelCountByMonthAPIView(APIView):
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
         
-def validate_email_format(email):
-    regex = r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$'
-    return re.match(regex, email) is not None
 
-def extract_domain(email):
-    return email.split('@')[1]
-
-def check_mx_records(domain):
-    try:
-        mx_records = dns.resolver.resolve(domain, 'MX')
-        return len(mx_records) > 0
-    except dns.resolver.NoAnswer:
-        return False
-    except dns.resolver.NXDOMAIN:
-        return False
-    except dns.exception.DNSException:
-        return False
-
-def smtp_check(email):
-    from_email = "allouchhatim@gmail.com"
-    from_email_password = "Lburden123456@   "
-    domain = extract_domain(email)
-    try:
-        mx_records = dns.resolver.resolve(domain, 'MX')
-        mail_server = str(mx_records[0].exchange)
-
-        server = smtplib.SMTP(mail_server)
-        server.set_debuglevel(0)
-        server.helo('example.com')
-        server.starttls()
-        server.login(from_email, from_email_password)
-        server.mail(from_email)
-        code, message = server.rcpt(email)
-        server.quit()
-        
-        return code == 250
-    except:
-        return False
-
-def validate_email(email):
-    if not validate_email_format(email):
-        return False, "Invalid email format"
-    
-    domain = extract_domain(email)
-    if not check_mx_records(domain):
-        return False, "No MX records found for the domain"
-    
-    if not smtp_check(email):
-        return False, "SMTP check failed; the email address may not exist"
-    
-    return True, "Email address is valid and exists"
 
 class RegisterView(APIView):
 
@@ -137,13 +87,6 @@ class RegisterView(APIView):
             cin = agent_data.get('cin')
             numerotel = agent_data.get('numerotel')
 
-            # Validate the email address
-            is_valid, message = validate_email(email)
-            if not is_valid:
-                return Response({
-                    'status': 'error',
-                    'message': message
-                }, status=status.HTTP_400_BAD_REQUEST)
 
             # Create the agent
             agent = Agent.objects.create(
