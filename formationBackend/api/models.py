@@ -1,6 +1,5 @@
 from django.db import models
-from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
-from django.contrib.auth.models import AbstractUser
+from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, AbstractUser
 
 
 class AgentManager(BaseUserManager):
@@ -60,46 +59,110 @@ class Agent(AbstractUser):
 
     # Add any additional fields as needed
     temporary_session = models.BooleanField(default=False)
-     # Override username field to make it nullable
+    # Override username field to make it nullable
     username = models.CharField(max_length=150, unique=True, null=True, blank=True)
-    
+    site = models.CharField(max_length=100, blank=True, null=True)
+
     def __str__(self):
         return f"{self.prenom} {self.nom} ({self.role})"
 
+
 class RH(models.Model):
-    agent = models.OneToOneField(Agent, on_delete=models.CASCADE,null=True, blank=True)
+    agent = models.OneToOneField(Agent, on_delete=models.CASCADE, null=True, blank=True)
     department = models.CharField(max_length=100, blank=True, null=True)
 
+
 class ResponsableFormation(models.Model):
-    agent = models.OneToOneField(Agent, on_delete=models.CASCADE,null=True, blank=True)
+    agent = models.OneToOneField(Agent, on_delete=models.CASCADE, null=True, blank=True)
     domain = models.CharField(max_length=100, blank=True, null=True)
 
+
 class ResponsableEcoleFormation(models.Model):
-    agent = models.OneToOneField(Agent, on_delete=models.CASCADE,null=True, blank=True)
-    school_name = models.CharField(max_length=100, blank=True, null=True)
+    agent = models.OneToOneField(Agent, on_delete=models.CASCADE, null=True, blank=True)
+
 
 class Formateur(models.Model):
-    agent = models.OneToOneField(Agent, on_delete=models.CASCADE,null=True, blank=True)
+    agent = models.OneToOneField(Agent, on_delete=models.CASCADE, null=True, blank=True)
     isAffecteur = models.BooleanField(default=False)
-    type=models.CharField(max_length=100)
+    Type = models.CharField(max_length=100, null=False, blank=False, default="Theorique")
+
+
 class Ligne(models.Model):
     name = models.CharField(max_length=100)
+    superviseur = models.ForeignKey('Superviseur', on_delete=models.CASCADE, null=True, blank=True)
 
     def __str__(self):
         return self.name
 
+
 class Superviseur(models.Model):
     agent = models.OneToOneField(Agent, on_delete=models.CASCADE, null=True, blank=True)
-    ligne = models.ForeignKey(Ligne, on_delete=models.CASCADE)
+    lignes = models.ManyToManyField(Ligne, related_name='superviseurs')
+
+    def __str__(self):
+        return f"{self.agent.prenom} {self.agent.nom} (Superviseur)"
 
 
 class Personnel(models.Model):
+    OPERATOR_STATE = 'Operateur'
+    PERSONNEL_STATE = 'Candidat'
+    EN_FORMATION_STATE = 'En Formation'
+    STATE_CHOICES = [
+        (OPERATOR_STATE, 'Operateur'),
+        (PERSONNEL_STATE, 'Candidat'),
+        (EN_FORMATION_STATE, 'En Formation')
+    ]
+
     agent = models.OneToOneField(Agent, on_delete=models.CASCADE)
-    etat = models.CharField(max_length=100, blank=True, null=True, default="Candidat")
+    etat = models.CharField(max_length=100, choices=STATE_CHOICES, default=PERSONNEL_STATE)
+    ligne = models.ForeignKey(Ligne, on_delete=models.CASCADE, null=True, blank=True)
+    poste = models.ForeignKey('Poste', on_delete=models.CASCADE, null=True, blank=True)
+
+
+    def save(self, *args, **kwargs):
+        if self.etat == self.OPERATOR_STATE and not self.ligne and not self.poste:
+            raise ValueError("Ligne and Poste must be set if the etat is Operator.")
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.agent.prenom} {self.agent.nom} ({self.agent.role})"
-    
+
+class Poste(models.Model):
+    TYPE_CHOICES = [
+        ('simple_sans_risque', 'Simple sans risque'),
+        ('simple_avec_risque', 'Simple avec des risques'),
+        ('compliqué_sans_risque', 'Compliqué sans risque'),
+        ('compliqué_avec_risque', 'Compliqué avec le risque'),
+    ]
+
+    name = models.CharField(max_length=100)
+    lignes = models.ManyToManyField(Ligne, related_name='postes')
+    type = models.CharField(max_length=50, choices=TYPE_CHOICES, default='simple_sans_risque')
+
+    def __str__(self):
+        return self.name
+class Polyvalence(models.Model):
+    supervisor = models.ForeignKey(Superviseur, on_delete=models.CASCADE)
+    personnel = models.ForeignKey(Personnel, on_delete=models.CASCADE)
+    poste = models.ForeignKey(Poste, on_delete=models.CASCADE)
+    ligne = models.ForeignKey(Ligne, on_delete=models.CASCADE)
+    score = models.DecimalField(max_digits=5, decimal_places=2)
+    comments = models.TextField()
+
+    class Meta:
+        unique_together = ('personnel', 'poste', 'ligne')
+
+    def save(self, *args, **kwargs):
+        if self.personnel.etat != Personnel.OPERATOR_STATE:
+            raise ValueError("Personnel must be in 'Operateur' state to be rated.")
+        if self.personnel.ligne not in self.supervisor.lignes.all():
+            raise ValueError("Personnel must belong to the supervisor's line.")
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"Polyvalence for {self.personnel} by {self.supervisor} in {self.poste} on {self.ligne}"
+
+
 class Test(models.Model):
     type_test = models.CharField(max_length=100)
     date_test = models.DateField()
@@ -114,6 +177,7 @@ class Test(models.Model):
         return (f"Test: {self.type_test} le {self.date_test} | Personnel: {self.personnel} | "
                 f"Note: {self.note_test} | Responsables: {responsables} | Formateurs: {formateurs}")
 
+
 class Contrat(models.Model):
     #agent = models.OneToOneField(Agent, on_delete=models.CASCADE)
     agent_id = models.IntegerField()
@@ -123,14 +187,6 @@ class Contrat(models.Model):
 
     def __str__(self):
         return f"Contrat de {self.agent.prenom} {self.agent.nom} ({self.type_contrat})"
-    
-    
-class Poste(models.Model):
-    name = models.CharField(max_length=100)
-    lignes = models.ManyToManyField('Ligne', related_name='postes')
-    
-    def __str__(self):
-        return self.name
 
 class Module(models.Model):
     name = models.CharField(max_length=100)

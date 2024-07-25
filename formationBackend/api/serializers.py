@@ -1,7 +1,7 @@
 # serializers.py
 from rest_framework import serializers, status
 from rest_framework import serializers
-from .models import Agent, Superviseur, Ligne, Personnel, Test, Contrat ,ResponsableEcoleFormation,Formateur ,Test, Contrat 
+from .models import Agent, Superviseur, Ligne, Personnel, Polyvalence, Test, Contrat ,ResponsableEcoleFormation,Formateur ,Test, Contrat ,Poste,ResponsableFormation
 from django.contrib.auth import authenticate
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -27,7 +27,9 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
                 data = super().validate(attrs)
                 data.update({
                     'username': user.username,
-                    'role': user.role  # Include the role in the response
+                    'role': user.role,
+                    'user_id': user.id,
+                    'role_specific_id': self.get_role_specific_id(user)  # Include the role-specific ID in the response
                 })
                 return data
 
@@ -37,8 +39,26 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     def get_token(cls, user):
         token = super().get_token(user)
         token['username'] = user.username
-        token['role'] = user.role  # Include the role in the token payload
+        token['role'] = user.role
+        token['user_id'] = user.id
+        token['role_specific_id'] = cls.get_role_specific_id(user)  # Include the role-specific ID in the token payload
         return token
+
+    @staticmethod
+    def get_role_specific_id(user):
+        if user.role == 'RH':
+            return RH.objects.get(agent=user).id
+        elif user.role == 'ResponsableFormation':
+            return ResponsableFormation.objects.get(agent=user).id
+        elif user.role == 'ResponsableEcoleFormation':
+            return ResponsableEcoleFormation.objects.get(agent=user).id
+        elif user.role == 'Formateur':
+            return Formateur.objects.get(agent=user).id
+        elif user.role == 'Superviseur':
+            return Superviseur.objects.get(agent=user).id
+        elif user.role == 'Personnel':
+            return Personnel.objects.get(agent=user).id
+        return None
     
 
 class AgentSerializer(serializers.ModelSerializer):
@@ -80,22 +100,81 @@ class PersonnelSerializer(serializers.ModelSerializer):
         agent = AgentSerializer.create(AgentSerializer(), validated_data=agent_data)
         personnel = Personnel.objects.create(agent=agent, **validated_data)
         return personnel
+class LigneSerializer(serializers.ModelSerializer):
+    superviseur_nom = serializers.CharField(source='superviseur.agent.nom', read_only=True)
+    superviseur_prenom = serializers.CharField(source='superviseur.agent.prenom', read_only=True)
 
+    class Meta:
+        model = Ligne
+        fields = ['id', 'name', 'superviseur_nom', 'superviseur_prenom', 'superviseur']
+
+    def validate(self, data):
+        if data.get('superviseur') is None:
+            raise serializers.ValidationError("A supervisor must be assigned to the ligne.")
+        return data
+    
 class SuperviseurSerializer(serializers.ModelSerializer):
-     
-    agent = AgentSerializer()
-    ligne_id = serializers.PrimaryKeyRelatedField(queryset=Ligne.objects.all(), source='ligne')
+    agent = AgentSerializer(required=False)  # Allow partial updates without requiring password
+    lignes = LigneSerializer(many=True, read_only=True)
+    lignes_ids = serializers.PrimaryKeyRelatedField(queryset=Ligne.objects.all(), many=True, write_only=True)
 
     class Meta:
         model = Superviseur
-        fields = ['id', 'agent', 'ligne_id']
+        fields = ['id', 'agent', 'lignes', 'lignes_ids']
 
     def create(self, validated_data):
-        agent_data = validated_data.pop('agent')
-        agent_data['role'] = 'Superviseur'
-        agent = AgentSerializer.create(AgentSerializer(), validated_data=agent_data)
-        superviseur = Superviseur.objects.create(agent=agent, **validated_data)
+        agent_data = validated_data.pop('agent', None)
+        lignes_ids = validated_data.pop('lignes_ids', [])
+
+        if agent_data:
+            agent_data['role'] = 'Superviseur'
+            agent = AgentSerializer.create(AgentSerializer(), validated_data=agent_data)
+            validated_data['agent'] = agent
+
+        superviseur = Superviseur.objects.create(**validated_data)
+
+        if lignes_ids:
+            superviseur.lignes.set(lignes_ids)
+
         return superviseur
+    def update(self, instance, validated_data):
+        agent_data = validated_data.pop('agent', {})  # Handle optional agent data
+
+        # Update agent instance if data provided
+        if agent_data:
+            agent_instance = instance.agent
+            agent_serializer = AgentSerializer(agent_instance, data=agent_data, partial=True)
+            if agent_serializer.is_valid():
+                agent_serializer.save()
+            else:
+                raise serializers.ValidationError(agent_serializer.errors)
+
+        lignes_ids = validated_data.pop('lignes_ids', [])
+
+        # Update Superviseur instance
+        instance.lignes.set(lignes_ids)  # Update many-to-many relation
+        return super().update(instance, validated_data)
+
+
+
+    def update(self, instance, validated_data):
+        agent_data = validated_data.pop('agent', {})  # Handle optional agent data
+
+        # Update agent instance if data provided
+        if agent_data:
+            agent_instance = instance.agent
+            agent_serializer = AgentSerializer(agent_instance, data=agent_data, partial=True)
+            if agent_serializer.is_valid():
+                agent_serializer.save()
+            else:
+                raise serializers.ValidationError(agent_serializer.errors)
+
+        lignes_ids = validated_data.pop('lignes_ids', [])
+
+        # Update Superviseur instance
+        instance.lignes.set(lignes_ids)  # Update many-to-many relation
+        return super().update(instance, validated_data)
+
 
 class RHSerializer(serializers.ModelSerializer):
     agent = AgentSerializer()
@@ -110,14 +189,39 @@ class RHSerializer(serializers.ModelSerializer):
         agent = AgentSerializer.create(AgentSerializer(), validated_data=agent_data)
         rh = RH.objects.create(agent=agent, **validated_data)
         return rh
+    
+class PosteSerializer(serializers.ModelSerializer):
+    lignes = LigneSerializer(many=True, read_only=True)
+    lignes_ids = serializers.PrimaryKeyRelatedField(queryset=Ligne.objects.all(), many=True, write_only=True)
 
+    class Meta:
+        model = Poste
+        fields = ['id', 'name', 'type', 'lignes', 'lignes_ids']
+
+    def create(self, validated_data):
+        # Pop lignes_ids from validated_data
+        lignes_ids = validated_data.pop('lignes_ids', [])
+        # Create the Poste instance without lignes_ids
+        poste = Poste.objects.create(**validated_data)
+        # Set the lignes relationship
+        poste.lignes.set(lignes_ids)
+        return poste
 
 class PersonnelSerializer(serializers.ModelSerializer):
     agent = AgentSerializer()
+    poste = PosteSerializer(required=False, allow_null=True)
+    polyvalence = serializers.SerializerMethodField()
 
     class Meta:
         model = Personnel
-        fields = ['id', 'agent', 'etat']
+        fields = ['id', 'agent', 'etat', 'ligne', 'poste', 'polyvalence']
+
+    def get_polyvalence(self, obj):
+        try:
+            polyvalence = Polyvalence.objects.get(personnel=obj, poste=obj.poste, ligne=obj.ligne)
+            return PolyvalenceSerializer(polyvalence).data
+        except Polyvalence.DoesNotExist:
+            return None
 
     def create(self, validated_data):
         agent_data = validated_data.pop('agent')
@@ -125,28 +229,22 @@ class PersonnelSerializer(serializers.ModelSerializer):
         agent = AgentSerializer.create(AgentSerializer(), validated_data=agent_data)
         personnel = Personnel.objects.create(agent=agent, **validated_data)
         return personnel
+
     def delete(self, validated_data):
         agent_data = validated_data.pop('agent')
         agent_data['role'] = 'Personnel'
         agent = AgentSerializer.delete(AgentSerializer(), validated_data=agent_data)
         personnel = Personnel.objects.delete(agent=agent, **validated_data)
         return personnel
-
-class SuperviseurSerializer(serializers.ModelSerializer):
-    agent = AgentSerializer()
-    ligne_id = serializers.PrimaryKeyRelatedField(queryset=Ligne.objects.all(), source='ligne')
-    ligne_name = serializers.CharField(source='ligne.name', read_only=True)
+    
+class PersonnelUpdateEtatSerializer(serializers.ModelSerializer):
+    ligne = serializers.PrimaryKeyRelatedField(queryset=Ligne.objects.all())
+    poste = serializers.PrimaryKeyRelatedField(queryset=Poste.objects.all())
 
     class Meta:
-        model = Superviseur
-        fields = ['id', 'agent', 'ligne_id', 'ligne_name']
+        model = Personnel
+        fields = ['ligne', 'poste']
 
-    def create(self, validated_data):
-        agent_data = validated_data.pop('agent')
-        agent_data['role'] = 'Superviseur'
-        agent = AgentSerializer.create(AgentSerializer(), validated_data=agent_data)
-        superviseur = Superviseur.objects.create(agent=agent, **validated_data)
-        return superviseur
 
 class DateTruncatedMonthField(serializers.ReadOnlyField):
     def to_representation(self, value):
@@ -168,7 +266,7 @@ class ResponsableFormationEcoleSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ResponsableEcoleFormation
-        fields = ['id', 'school_name','agent']
+        fields = ['id','agent']
 
     def create(self, validated_data):
         agent_data = validated_data.pop('agent')
@@ -183,7 +281,7 @@ class FormateurSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Formateur
-        fields = ['id', 'isAffecteur','type', 'agent']
+        fields = ['id', 'isAffecteur','Type', 'agent']
 
     def create(self, validated_data):
         agent_data = validated_data.pop('agent')
@@ -242,4 +340,28 @@ class ContratSerializer(serializers.ModelSerializer):
         return contrat
 
 
+
+
+class PolyvalenceSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Polyvalence
+        fields = '__all__'
+
+    def validate(self, data):
+        personnel = data['personnel']
+        supervisor = data['supervisor']
+        
+        # Check if personnel is an operator
+        if personnel.etat != Personnel.OPERATOR_STATE:
+            raise serializers.ValidationError("Personnel must be in 'Operateur' state to be rated.")
+        
+        # Check if personnel belongs to the supervisor's line
+        if personnel.ligne not in supervisor.lignes.all():
+            raise serializers.ValidationError("Personnel must belong to the supervisor's line.")
+        
+        return data
+class PolyvalenceUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Polyvalence
+        fields = ['score', 'comments']
 

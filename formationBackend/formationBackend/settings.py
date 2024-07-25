@@ -61,6 +61,9 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    # 'api.middleware.AuthenticationMiddleware',
+    'api.middleware.LoggingMiddleware', 
+    'api.middleware.CORSMiddleware', 
 ]
 
 ROOT_URLCONF = 'formationBackend.urls'
@@ -169,7 +172,8 @@ SIMPLE_JWT = {
 }
 
 CORS_ALLOWED_ORIGINS=[
-    'http://localhost:3000'
+    'http://localhost:3000',
+    'http://localhost:3001',
 ]
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field
