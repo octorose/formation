@@ -20,7 +20,7 @@ from .views import (
     UpdateFormateurView,
     DeleteFormateurView,
     ListFormateurView,
-    SearchFormateurView,
+    SearchFormateurView, UpdatePosteView, PosteListView, PosteSearchView, PosteDeleteView,PosteCreateView
 )
 
 
@@ -47,4 +47,10 @@ urlpatterns = [
     path('delete-formateurs/<int:pk>/', DeleteFormateurView.as_view(), name='formateur-delete'),
     path('search-formateurs/', SearchFormateurView.as_view(), name='formateur-search'),
 
+
+    path('create-postes/', PosteCreateView.as_view(), name='create_poste'),
+    path('update-postes/<int:pk>/', UpdatePosteView.as_view(), name='update_poste'),
+    path('postes/', PosteListView.as_view(), name='list_postes'),
+    path('search-postes/', PosteSearchView.as_view(), name='search_postes'),
+    path('delete-postes/<int:pk>/', PosteDeleteView.as_view(), name='delete_poste'),
 ]

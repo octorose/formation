@@ -190,6 +190,12 @@ class SupervisorListView(APIView):
         result_page = paginator.paginate_queryset(supervisors, request)
         serializer = SuperviseurSerializer(result_page, many=True)
         return paginator.get_paginated_response(serializer.data)
+
+class Supervisorlisntingnopage(APIView):
+    def get(self, request):
+        supervisors = Superviseur.objects.all()
+        serializer = SuperviseurSerializer(supervisors, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
     
 class SupervisorSearchView(APIView):
     def get(self, request):
@@ -226,7 +232,7 @@ class CreatePersonnelView(APIView):
         etat = data.get('etat')
         ligne = data.get('ligne')
         poste = data.get('poste')
-
+        print(etat)
         if etat not in ['En Formation', 'Candidate', 'Candidat' ,'Operateur']:
             return Response({
                 'status': 'error',
@@ -414,6 +420,12 @@ class PersonnelOperatorListView(generics.ListAPIView):
     def get_queryset(self):
         return Personnel.objects.filter(etat=Personnel.OPERATOR_STATE)
     
+class EnFormationListView(generics.ListAPIView):
+    serializer_class = PersonnelSerializer
+
+    def get_queryset(self):
+        return Personnel.objects.filter(etat=Personnel.EN_FORMATION_STATE)
+    
 class ModuleCreateView(APIView):
     def post(self, request):
         serializer = ModuleSerializer(data=request.data)
@@ -438,8 +450,6 @@ class ModuleListView(APIView):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-
-#///////////////////////////////////////////////////////////////////////////////////////////:
 class ResponsableFormationListView(generics.ListAPIView):
     queryset = ResponsableEcoleFormation.objects.all()
     serializer_class = ResponsableFormationEcoleSerializer
@@ -518,7 +528,6 @@ class ResponsableFormationEcoleSearchView(APIView):
             return Response(serializer.data, status=status.HTTP_200_OK)
         return Response({"message": "No query provided"}, status=status.HTTP_400_BAD_REQUEST)
 
- #///////////////////////////////////////////////////////////////////////////////////   
 
 class ListFormateurView(APIView):
 
@@ -747,7 +756,6 @@ class LigneListView(generics.ListAPIView):
 
 
 class CreateLigneView(APIView):
-
     def post(self, request):
         serializer = LigneSerializer(data=request.data)
         if serializer.is_valid():
@@ -764,10 +772,93 @@ class CreateLigneView(APIView):
 class LigneDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Ligne.objects.all()
     serializer_class = LigneSerializer
-    
-class PosteCreateView(generics.CreateAPIView):
-    queryset = Poste.objects.all()
-    serializer_class = PosteSerializer
+ 
+#////////////////////////////////////////////////////////////////////////////   
+class PosteCreateView(APIView):
+    def post(self, request):
+        serializer = PosteSerializer(data=request.data)
+        if serializer.is_valid():
+            poste = serializer.save()
+            return Response({
+                'status': 'success',
+                'message': 'Poste created successfully',
+                'poste_id': poste.id
+            }, status=status.HTTP_201_CREATED)
+        return Response({
+            'status': 'error',
+            'message': serializer.errors
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+        
+class UpdatePosteView(APIView):
+
+    def put(self, request, pk, format=None):
+        try:
+            poste = get_object_or_404(Poste, pk=pk)
+            
+            # Assurez-vous que lignes_ids est une liste vide si non fourni
+            lignes_data = request.data.get('lignes_ids', [])
+
+            poste_serializer = PosteSerializer(poste, data=request.data, partial=True)
+            if poste_serializer.is_valid():
+                updated_poste = poste_serializer.save()
+
+                # Effacez les lignes existantes associées au poste
+                poste.lignes.clear()
+
+                for ligne_id in lignes_data:
+                    # Utilisation directe de l'ID pour optimiser la requête
+                    ligne, created = Ligne.objects.get_or_create(id=ligne_id)
+                    poste.lignes.add(ligne)
+
+                return Response({
+                    'poste': poste_serializer.data,
+                }, status=status.HTTP_200_OK)
+            else:
+                return Response({'poste_errors': poste_serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+        except Poste.DoesNotExist:
+            return Response({'error': 'Poste not found'}, status=status.HTTP_404_NOT_FOUND)
+        except Ligne.DoesNotExist:
+            return Response({'error': 'Ligne not found'}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+class PosteListView(APIView):
+    def get(self, request):
+        supervisor_id = request.query_params.get('supervisor_id')
+        if supervisor_id:
+            postes = Poste.objects.filter(lignes__superviseurs__id=supervisor_id).distinct()
+        else:
+            postes = Poste.objects.all()
+            
+        paginator = PageNumberPagination()
+        paginator.page_size = 10  # Number of postes per page
+        result_page = paginator.paginate_queryset(postes, request)
+        serializer = PosteSerializer(result_page, many=True)
+        return paginator.get_paginated_response(serializer.data)
+
+class PosteSearchView(APIView):
+    def get(self, request):
+        query = request.query_params.get('query', '')
+        if query:
+            postes = Poste.objects.filter(
+                Q(name__icontains=query)
+            )
+            serializer = PosteSerializer(postes, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response({"message": "No query provided"}, status=status.HTTP_400_BAD_REQUEST)
+
+class PosteDeleteView(APIView):
+    def delete(self, request, pk, format=None):
+        try:
+            poste = get_object_or_404(Poste, pk=pk)
+            poste.delete()
+            return Response({'message': 'Poste deleted successfully.'}, status=status.HTTP_204_NO_CONTENT)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        
+#/////////////////////////////////////////////////////////////////////////:
 
 class PolyvalenceViewSet(generics.CreateAPIView):
     queryset = Polyvalence.objects.all()
@@ -776,6 +867,8 @@ class PolyvalenceViewSet(generics.CreateAPIView):
 class PolyvalenceUpdateView(generics.RetrieveUpdateAPIView):
     queryset = Polyvalence.objects.all()
     serializer_class = PolyvalenceUpdateSerializer
+
+
 
 class UnratedOperatorsByLineView(APIView):
     def get(self, request, ligne_id):
@@ -786,12 +879,11 @@ class UnratedOperatorsByLineView(APIView):
     
         operators_in_line = Personnel.objects.filter(ligne=ligne, etat=Personnel.OPERATOR_STATE)
         
-        # Most important part of the view
         unrated_operators = []
         for operator in operators_in_line:
             if not Polyvalence.objects.filter(personnel=operator, poste=operator.poste, ligne=ligne).exists():
                 unrated_operators.append(operator)
-        ########################################
+
 
         serializer = PersonnelSerializer(unrated_operators, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)

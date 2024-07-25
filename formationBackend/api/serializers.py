@@ -189,23 +189,37 @@ class RHSerializer(serializers.ModelSerializer):
         agent = AgentSerializer.create(AgentSerializer(), validated_data=agent_data)
         rh = RH.objects.create(agent=agent, **validated_data)
         return rh
+    
 class PosteSerializer(serializers.ModelSerializer):
+    lignes = LigneSerializer(many=True, read_only=True)
+    lignes_ids = serializers.PrimaryKeyRelatedField(queryset=Ligne.objects.all(), many=True, write_only=True)
+
     class Meta:
         model = Poste
-        fields = ['id', 'name', 'lignes']
+        fields = ['id', 'name', 'type', 'lignes', 'lignes_ids']
+
+    def create(self, validated_data):
+        # Pop lignes_ids from validated_data
+        lignes_ids = validated_data.pop('lignes_ids', [])
+        # Create the Poste instance without lignes_ids
+        poste = Poste.objects.create(**validated_data)
+        # Set the lignes relationship
+        poste.lignes.set(lignes_ids)
+        return poste
 
 class PersonnelSerializer(serializers.ModelSerializer):
     agent = AgentSerializer()
-    poste = PosteSerializer()
-    score = serializers.SerializerMethodField()
+    poste = PosteSerializer(required=False, allow_null=True)
+    polyvalence = serializers.SerializerMethodField()
+
     class Meta:
         model = Personnel
-        fields = ['id', 'agent', 'etat', 'ligne', 'poste', 'score']
-    
-    def get_score(self, obj):
+        fields = ['id', 'agent', 'etat', 'ligne', 'poste', 'polyvalence']
+
+    def get_polyvalence(self, obj):
         try:
             polyvalence = Polyvalence.objects.get(personnel=obj, poste=obj.poste, ligne=obj.ligne)
-            return polyvalence.score
+            return PolyvalenceSerializer(polyvalence).data
         except Polyvalence.DoesNotExist:
             return None
 
@@ -215,13 +229,14 @@ class PersonnelSerializer(serializers.ModelSerializer):
         agent = AgentSerializer.create(AgentSerializer(), validated_data=agent_data)
         personnel = Personnel.objects.create(agent=agent, **validated_data)
         return personnel
+
     def delete(self, validated_data):
         agent_data = validated_data.pop('agent')
         agent_data['role'] = 'Personnel'
         agent = AgentSerializer.delete(AgentSerializer(), validated_data=agent_data)
         personnel = Personnel.objects.delete(agent=agent, **validated_data)
         return personnel
-
+    
 class PersonnelUpdateEtatSerializer(serializers.ModelSerializer):
     ligne = serializers.PrimaryKeyRelatedField(queryset=Ligne.objects.all())
     poste = serializers.PrimaryKeyRelatedField(queryset=Poste.objects.all())
