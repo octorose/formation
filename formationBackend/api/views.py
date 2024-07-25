@@ -24,6 +24,8 @@ from django.shortcuts import get_object_or_404
 
 from .models import Test, Contrat
 from .serializers import TestSerializer, ContratSerializer
+import logging
+import json
 
 class PersonnelSumByEtatView(APIView):
     permission_classes = [AllowAny]
@@ -508,11 +510,17 @@ class ListContratView(generics.ListAPIView):
     permission_classes = [AllowAny]
     queryset = Contrat.objects.all()
     serializer_class = ContratSerializer
+    
 
 class CreateContratView(APIView):
     permission_classes = [AllowAny]
-
+    queryset = Agent.objects.all()
+    serializer_class = AgentSerializer
     def post(self, request):
+        #logging.warning(f"from views Value of my_variable: {request.data['agent']}")
+        #agent = Agent.objects.filter(pk=request.data['agent']).first()
+        #logging.warning(f"from views Value of my_variable: {agent}")
+        #agent_serializer = AgentSerializer(agent)
         serializer = ContratSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
@@ -546,8 +554,10 @@ class DeleteContratView(APIView):
 
     def delete(self, request, pk, format=None):
         try:
-            contrat = get_object_or_404(Contrat, pk=pk)
-            contrat.delete()
+            #contrat = get_object_or_404(Contrat, pk=pk)
+            #contrat.delete()
+            contract = Contrat.objects.get(pk=pk)
+            contract.delete()
             return Response({'message': 'Contrat deleted successfully.'}, status=status.HTTP_204_NO_CONTENT)
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
@@ -565,3 +575,14 @@ class UpdateContratView(APIView):
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        
+
+# Views for Agent
+class ListAgentView(generics.ListAPIView):
+    logging.warning(f"from views Value of my_variable: ")
+    permission_classes = [AllowAny]
+    queryset = Agent.objects.all()
+    serializer_class = AgentSerializer
+
+
+

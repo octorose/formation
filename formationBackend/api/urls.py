@@ -11,7 +11,8 @@ from .views import (
     UpdateContratView,
     DeleteContratView,
     ListContratView,
-    SearchContratView
+    SearchContratView,
+    ListAgentView
 )
 
 urlpatterns = [
@@ -28,4 +29,7 @@ urlpatterns = [
     path('api/contrats/update/<int:pk>/', UpdateContratView.as_view(), name='contrat-edit'),
     path('api/contrats/delete/<int:pk>/', DeleteContratView.as_view(), name='contrat-delete'),
     path('api/contrats/search/', SearchContratView.as_view(), name='contrat-search'),
+    
+    path('api/agents/', ListAgentView.as_view(), name='agent-list'),
+    
 ]
