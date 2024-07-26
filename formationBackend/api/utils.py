@@ -1,4 +1,4 @@
-
+#utils
 import re
 import dns.resolver
 import smtplib
@@ -6,29 +6,42 @@ import logging
 import environ
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from django.core.mail import send_mail
+from django.utils.http import urlsafe_base64_encode
+from django.contrib.auth.tokens import default_token_generator
+from django.utils.encoding import force_bytes
+from django.urls import reverse
+from django.conf import settings
+from django.contrib.auth import get_user_model
 
-def send_verification_email(to_email):
-    env = environ.Env()
+env = environ.Env()
+environ.Env.read_env()
+
+User = get_user_model()
+
+def send_verification_email(user):
     from_email = "allouchhatim@gmail.com"
     from_email_password = env('APP_SMTP_SERVE')
+    print("|heeere"+str(user.pk))
+    uid = urlsafe_base64_encode(force_bytes(user.pk))
+    token = default_token_generator.make_token(user)
+    verification_link = f"{settings.SITE_URL}{reverse('verify_email', kwargs={'uidb64': uid, 'token': token})}"
     
-    # Create the email content
     subject = "Email Verification"
-    body = "Please verify your email address by clicking the link below:\n\nVerification Link"
+    body = f"Please verify your email address by clicking the link below:\n\n{verification_link}"
 
     msg = MIMEMultipart()
     msg['From'] = from_email
-    msg['To'] = to_email
+    msg['To'] = user.email
     msg['Subject'] = subject
     msg.attach(MIMEText(body, 'plain'))
 
     try:
         server = smtplib.SMTP('smtp.gmail.com', 587)
+        server.set_debuglevel(1)  # Enable debug output
         server.starttls()
         server.login(from_email, from_email_password)
         text = msg.as_string()
-        server.sendmail(from_email, to_email, text)
+        server.sendmail(from_email, user.email, text)
         server.quit()
         return True, "Verification email sent successfully"
     except Exception as e:
@@ -54,14 +67,13 @@ def check_mx_records(domain):
         return False
 
 def smtp_check(email):
-    env = environ.Env()
     from_email = "allouchhatim@gmail.com"
     from_email_password = env('APP_SMTP_SERVE')
     domain = extract_domain(email)
     
     try:
         mx_records = dns.resolver.resolve(domain, 'MX')
-        mail_server = str(mx_records[0].exchange)
+        # mail_server = str(mx_records[0].exchange)
         server = smtplib.SMTP('smtp.gmail.com', 587)
         server.set_debuglevel(1)
         server.starttls()
@@ -92,8 +104,11 @@ def validate_email(email):
     if not smtp_check(email):
         return False, "SMTP check failed; the email address may not exist"
     
-    # Send verification email
-    success, message = send_verification_email(email)
+    # Simulate creating a user object with the given email for sending the verification email
+    user = User(email=email)
+    user.pk = 1  # Assign a dummy user ID for demonstration purposes
+    
+    success, message = send_verification_email(user)
     if not success:
         return False, message
     
