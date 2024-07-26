@@ -1,6 +1,5 @@
 # views.py
 from rest_framework.views import APIView
-from rest_framework import viewsets
 from rest_framework.response import Response
 from .models import Poste
 from .serializers import PosteSerializer
@@ -17,10 +16,14 @@ from django.http import JsonResponse
 from .models import Module
 from rest_framework.pagination import PageNumberPagination
 from django.db.models import Q
-import re
-import dns.resolver
-import smtplib
 from django.shortcuts import get_object_or_404
+from django.contrib.auth.tokens import default_token_generator
+from django.utils.http import urlsafe_base64_decode
+from django.utils.encoding import force_str
+from django.views import View
+from django.http import HttpResponse
+from django.contrib.auth import get_user_model
+from django.http import HttpResponse
 
 from .models import Test, Contrat
 from .serializers import TestSerializer, ContratSerializer
@@ -87,8 +90,6 @@ class RegisterView(APIView):
             cin = agent_data.get('cin')
             numerotel = agent_data.get('numerotel')
 
-
-            # Create the agent
             agent = Agent.objects.create(
                 username=username,
                 email=email,
@@ -102,7 +103,6 @@ class RegisterView(APIView):
                 role=role
             )
 
-            # Create role-specific instance
             if role == 'Superviseur':
                 ligne_id = data.get('ligne_id')
                 ligne = Ligne.objects.get(id=ligne_id)
@@ -140,6 +140,29 @@ class RegisterView(APIView):
                 'message': str(e)
             }, status=status.HTTP_400_BAD_REQUEST)
 
+
+User = get_user_model()
+
+class VerifyEmailView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request, uidb64, token):
+        try:
+
+            uid = force_str(urlsafe_base64_decode(uidb64))
+
+           
+        except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+            user = None
+
+        if user is not None and default_token_generator.check_token(user, token):
+            # Mark user as verified or activate the user
+            user.is_active = True  # Assuming you have an 'is_active' field
+            user.save()
+            return HttpResponse('Email verified successfully')
+        else:
+            return HttpResponse('Email verification failed')
+    
 
 class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer  
@@ -231,38 +254,38 @@ class SuperviseurDeleteView(APIView):
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
         
 class CreatePersonnelView(APIView):
-
     def post(self, request):
         data = request.data
         etat = data.get('etat')
         ligne = data.get('ligne')
         poste = data.get('poste')
-        print(etat)
-        if etat not in ['En Formation', 'Candidate', 'Candidat' ,'Operateur']:
+
+        if etat not in ['En Formation', 'Candidate', 'Candidat', 'Operateur']:
             return Response({
                 'status': 'error',
-                'message': 'Invalid etat value. Must be "En Formation" or "Candidate" or "Operateur".'
+                'message': 'Invalid etat value. Must be "En Formation", "Candidate", or "Operateur".'
             }, status=status.HTTP_400_BAD_REQUEST)
-        
         
         serializer = PersonnelSerializer(data=data)
         if serializer.is_valid():
-            if etat == 'Operateur' and  ligne is None and poste is None:
+            if etat == 'Operateur' and (ligne is None or poste is None):
                 return Response({
                     'status': 'error',
-                    'message': 'Ligne and Poste is required for Operateur.'
+                    'message': 'Ligne and Poste are required for Operateur.'
                 }, status=status.HTTP_400_BAD_REQUEST)
-            serializer.save()
+            
+            # Save the personnel
+            personnel = serializer.save()
+            
             return Response({
                 'status': 'success',
-                'message': 'Personnel created successfully',
+                'message': 'Personnel created successfully. Please verify your email.',
                 'personnel_id': serializer.data['id']
             }, status=status.HTTP_201_CREATED)
         return Response({
             'status': 'error',
             'message': serializer.errors
         }, status=status.HTTP_400_BAD_REQUEST)
-
 class DeletePersonnelView(APIView):
 
 
@@ -323,39 +346,35 @@ class UpdatePersonnelView(APIView):
             personnel = get_object_or_404(Personnel, pk=pk)
             agent = personnel.agent
 
-            # Extract agent data and personnel data from the request
+          
             agent_data = request.data.get('agent', {})
-            personnel_data = request.data.copy()  # Use copy to avoid mutating original request data
-            personnel_data.pop('agent', None)  # Remove agent data from personnel data
+            personnel_data = request.data.copy()  
+            personnel_data.pop('agent', None) 
 
-            # Separate many-to-many fields from other fields for Agent
             agent_m2m_fields = {}
             for field in Agent._meta.get_fields():
                 if field.many_to_many:
                     agent_m2m_fields[field.name] = agent_data.pop(field.name, [])
 
-            # Separate many-to-many fields from other fields for Personnel
             personnel_m2m_fields = {}
             for field in Personnel._meta.get_fields():
                 if field.many_to_many:
                     personnel_m2m_fields[field.name] = personnel_data.pop(field.name, [])
 
-            # Update Agent
             agent_serializer = AgentSerializer(agent, data=agent_data, partial=True)
             if agent_serializer.is_valid():
                 agent_serializer.save()
-                # Update many-to-many fields for Agent
+               
                 for field_name, value in agent_m2m_fields.items():
                     field = getattr(agent, field_name)
                     field.set(value)
             else:
                 return Response({'agent_errors': agent_serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
-            # Update Personnel
+          
             personnel_serializer = PersonnelSerializer(personnel, data=personnel_data, partial=True)
             if personnel_serializer.is_valid():
                 personnel_serializer.save()
-                # Update many-to-many fields for Personnel
                 for field_name, value in personnel_m2m_fields.items():
                     field = getattr(personnel, field_name)
                     field.set(value)
