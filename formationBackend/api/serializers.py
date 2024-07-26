@@ -97,6 +97,7 @@ class AgentSerializer(serializers.ModelSerializer):
         return instance
 
 
+
 class PersonnelSerializer(serializers.ModelSerializer):
     agent = AgentSerializer()
 
