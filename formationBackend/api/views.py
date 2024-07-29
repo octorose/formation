@@ -5,7 +5,7 @@ from .models import Poste
 from .serializers import PosteSerializer
 from django.db.models import Count
 from rest_framework import status, generics
-from .serializers import SuperviseurSerializer,PolyvalenceUpdateSerializer, PolyvalenceSerializer,  PersonnelSerializer, RHSerializer, PersonnelCountSerializer, AgentSerializer, ModuleSerializer,ResponsableFormationEcoleSerializer,FormateurSerializer, LigneSerializer,PosteSerializer,PersonnelUpdateEtatSerializer
+from .serializers import SuperviseurSerializer,PolyvalenceUpdateSerializer,ContratDisplaySerializer, PolyvalenceSerializer,  PersonnelSerializer, RHSerializer, PersonnelCountSerializer, AgentSerializer, ModuleSerializer,ResponsableFormationEcoleSerializer,FormateurSerializer, LigneSerializer,PosteSerializer,PersonnelUpdateEtatSerializer
 from rest_framework.permissions import AllowAny
 from rest_framework_simplejwt.views import TokenObtainPairView
 from .serializers import CustomTokenObtainPairSerializer
@@ -27,6 +27,8 @@ from django.http import HttpResponse
 
 from .models import Test, Contrat
 from .serializers import TestSerializer, ContratSerializer
+import logging
+import json
 
 class PersonnelSumByEtatView(APIView):
     permission_classes = [AllowAny]
@@ -710,14 +712,24 @@ class UpdateTestView(APIView):
 
 # Views for Contrat
 class ListContratView(generics.ListAPIView):
-
     queryset = Contrat.objects.all()
-    serializer_class = ContratSerializer
+    serializer_class = ContratDisplaySerializer
+
 
 class CreateContratView(APIView):
 
 
+    queryset = Agent.objects.all()
+    serializer_class = AgentSerializer
+
+
+
+
     def post(self, request):
+        #logging.warning(f"from views Value of my_variable: {request.data['agent']}")
+        #agent = Agent.objects.filter(pk=request.data['agent']).first()
+        #logging.warning(f"from views Value of my_variable: {agent}")
+        #agent_serializer = AgentSerializer(agent)
         serializer = ContratSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
@@ -751,8 +763,10 @@ class DeleteContratView(APIView):
 
     def delete(self, request, pk, format=None):
         try:
-            contrat = get_object_or_404(Contrat, pk=pk)
-            contrat.delete()
+            #contrat = get_object_or_404(Contrat, pk=pk)
+            #contrat.delete()
+            contract = Contrat.objects.get(pk=pk)
+            contract.delete()
             return Response({'message': 'Contrat deleted successfully.'}, status=status.HTTP_204_NO_CONTENT)
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
@@ -771,6 +785,14 @@ class UpdateContratView(APIView):
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
         
+
+
+# Views for Agent
+class ListAgentView(generics.ListAPIView):
+    queryset = Agent.objects.all()
+    serializer_class = AgentSerializer
+    
+            
 
 class LigneListView(generics.ListAPIView):
     queryset = Ligne.objects.all()
@@ -929,3 +951,4 @@ class RatedOperatorsByLineView(APIView):
         
         serializer = PersonnelSerializer(rated_operators, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
