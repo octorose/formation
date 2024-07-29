@@ -179,8 +179,7 @@ class Test(models.Model):
 
 
 class Contrat(models.Model):
-    #agent = models.OneToOneField(Agent, on_delete=models.CASCADE)
-    agent_id = models.IntegerField()
+    agent = models.ForeignKey(Agent, on_delete=models.CASCADE)
     type_contrat = models.CharField(max_length=100)
     date_creation_contrat = models.DateField()
     duree_contrat = models.IntegerField()

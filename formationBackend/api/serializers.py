@@ -321,23 +321,24 @@ class TestSerializer(serializers.ModelSerializer):
 
          return test
 
-    
 
 class ContratSerializer(serializers.ModelSerializer):
-    #agent_id = AgentSerializer()
+    agent = serializers.PrimaryKeyRelatedField(queryset=Agent.objects.all())
 
     class Meta:
         model = Contrat
-        fields = ['id', 'agent_id', 'type_contrat', 'date_creation_contrat', 'duree_contrat']
+        fields = ['id', 'agent', 'type_contrat', 'date_creation_contrat', 'duree_contrat']
 
     def create(self, validated_data):
-        #agent_data = validated_data.pop('agent')
+        return Contrat.objects.create(**validated_data)
+class ContratDisplaySerializer(serializers.ModelSerializer):
+    agent = AgentSerializer()
 
-        # agent, created = serializers.PrimaryKeyRelatedField(queryset=Agent.objects.all(), source='agent', write_only=True)
-        #agent_instance = Agent.objects.get(id=agent_data) 
-        #validated_data['agent'] = agent_instance
-        contrat = Contrat.objects.create(**validated_data)
-        return contrat
+    class Meta:
+        model = Contrat
+        fields = ['id', 'agent', 'type_contrat', 'date_creation_contrat', 'duree_contrat']
+
+
 
 
 

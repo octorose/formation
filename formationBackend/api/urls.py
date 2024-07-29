@@ -28,19 +28,19 @@ from .views import (
 
 
 urlpatterns = [
-    path('api/tests/', ListTestView.as_view(), name='test-list'),
-    path('api/tests/create/', CreateTestView.as_view(), name='test-create'),
-    path('api/tests/update/<int:pk>/', UpdateTestView.as_view(), name='test-edit'),
-    path('api/tests/delete/<int:pk>/', DeleteTestView.as_view(), name='test-delete'),
-    path('api/tests/search/', SearchTestView.as_view(), name='test-search'),
-    path('api/contrats/', ListContratView.as_view(), name='contrat-list'),
-    path('api/contrats/create/', CreateContratView.as_view(), name='contrat-create'),
-    path('api/contrats/update/<int:pk>/', UpdateContratView.as_view(), name='contrat-edit'),
-    path('api/contrats/delete/<int:pk>/', DeleteContratView.as_view(), name='contrat-delete'),
-    path('api/contrats/search/', SearchContratView.as_view(), name='contrat-search'),
+    path('tests/', ListTestView.as_view(), name='test-list'),
+    path('tests/create/', CreateTestView.as_view(), name='test-create'),
+    path('tests/update/<int:pk>/', UpdateTestView.as_view(), name='test-edit'),
+    path('tests/delete/<int:pk>/', DeleteTestView.as_view(), name='test-delete'),
+    path('tests/search/', SearchTestView.as_view(), name='test-search'),
+    path('contrats/', ListContratView.as_view(), name='contrat-list'),
+    path('contrats/create/', CreateContratView.as_view(), name='contrat-create'),
+    path('contrats/update/<int:pk>/', UpdateContratView.as_view(), name='contrat-edit'),
+    path('contrats/delete/<int:pk>/', DeleteContratView.as_view(), name='contrat-delete'),
+    path('contrats/search/', SearchContratView.as_view(), name='contrat-search'),
 
     
-    path('api/agents/', ListAgentView.as_view(), name='agent-list'),
+    path('agents/', ListAgentView.as_view(), name='agent-list'),
     
 
     path('responsable_formation_ecole/', ResponsableFormationListView.as_view(), name='list-responsable-formation'),

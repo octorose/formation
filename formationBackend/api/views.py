@@ -6,7 +6,7 @@ from .models import Poste
 from .serializers import PosteSerializer
 from django.db.models import Count
 from rest_framework import status, generics
-from .serializers import SuperviseurSerializer,PolyvalenceUpdateSerializer, PolyvalenceSerializer,  PersonnelSerializer, RHSerializer, PersonnelCountSerializer, AgentSerializer, ModuleSerializer,ResponsableFormationEcoleSerializer,FormateurSerializer, LigneSerializer,PosteSerializer,PersonnelUpdateEtatSerializer
+from .serializers import SuperviseurSerializer,PolyvalenceUpdateSerializer,ContratDisplaySerializer, PolyvalenceSerializer,  PersonnelSerializer, RHSerializer, PersonnelCountSerializer, AgentSerializer, ModuleSerializer,ResponsableFormationEcoleSerializer,FormateurSerializer, LigneSerializer,PosteSerializer,PersonnelUpdateEtatSerializer
 from rest_framework.permissions import AllowAny
 from rest_framework_simplejwt.views import TokenObtainPairView
 from .serializers import CustomTokenObtainPairSerializer
@@ -688,14 +688,13 @@ class UpdateTestView(APIView):
 
 # Views for Contrat
 class ListContratView(generics.ListAPIView):
-
     queryset = Contrat.objects.all()
-    serializer_class = ContratSerializer
-    
+    serializer_class = ContratDisplaySerializer
+
 
 class CreateContratView(APIView):
 
-    permission_classes = [AllowAny]
+
     queryset = Agent.objects.all()
     serializer_class = AgentSerializer
 
@@ -766,8 +765,6 @@ class UpdateContratView(APIView):
 
 # Views for Agent
 class ListAgentView(generics.ListAPIView):
-    logging.warning(f"from views Value of my_variable: ")
-    permission_classes = [AllowAny]
     queryset = Agent.objects.all()
     serializer_class = AgentSerializer
     
