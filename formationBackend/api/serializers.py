@@ -84,6 +84,7 @@ class AgentSerializer(serializers.ModelSerializer):
         instance = self.Meta.model(**validated_data)
         if password is not None:
             instance.set_password(password)
+        instance.is_active = False  # Mark the user as inactive initially
         instance.save()
         return instance
 
@@ -95,8 +96,6 @@ class AgentSerializer(serializers.ModelSerializer):
                 setattr(instance, attr, value)
         instance.save()
         return instance
-
-
 
 class PersonnelSerializer(serializers.ModelSerializer):
     agent = AgentSerializer()

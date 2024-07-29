@@ -18,10 +18,22 @@ environ.Env.read_env()
 
 User = get_user_model()
 
+def validate_email(email):
+    if not validate_email_format(email):
+        return False, "Invalid email format"
+    
+    domain = extract_domain(email)
+    if not check_mx_records(domain):
+        return False, "No MX records found for the domain"
+    
+    if not smtp_check(email):
+        return False, "SMTP check failed; the email address may not exist"
+    
+    return True, "Email address is valid"
+
 def send_verification_email(user):
     from_email = "allouchhatim@gmail.com"
     from_email_password = env('APP_SMTP_SERVE')
-    print("|heeere"+str(user.pk))
     uid = urlsafe_base64_encode(force_bytes(user.pk))
     token = default_token_generator.make_token(user)
     verification_link = f"{settings.SITE_URL}{reverse('verify_email', kwargs={'uidb64': uid, 'token': token})}"
@@ -47,7 +59,6 @@ def send_verification_email(user):
     except Exception as e:
         logging.error(f"Failed to send verification email: {e}")
         return False, str(e)
-
 def validate_email_format(email):
     regex = r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$'
     return re.match(regex, email) is not None
@@ -93,23 +104,3 @@ def smtp_check(email):
         logging.error(f"SMTP error: {e}")
         return False
 
-def validate_email(email):
-    if not validate_email_format(email):
-        return False, "Invalid email format"
-    
-    domain = extract_domain(email)
-    if not check_mx_records(domain):
-        return False, "No MX records found for the domain"
-    
-    if not smtp_check(email):
-        return False, "SMTP check failed; the email address may not exist"
-    
-    # Simulate creating a user object with the given email for sending the verification email
-    user = User(email=email)
-    user.pk = 1  # Assign a dummy user ID for demonstration purposes
-    
-    success, message = send_verification_email(user)
-    if not success:
-        return False, message
-    
-    return True, "Email address is valid and verification email sent"

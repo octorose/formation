@@ -24,6 +24,7 @@ from django.views import View
 from django.http import HttpResponse
 from django.contrib.auth import get_user_model
 from django.http import HttpResponse
+from .utils import send_verification_email
 
 from .models import Test, Contrat
 from .serializers import TestSerializer, ContratSerializer
@@ -148,10 +149,8 @@ class VerifyEmailView(APIView):
 
     def get(self, request, uidb64, token):
         try:
-
             uid = force_str(urlsafe_base64_decode(uidb64))
-
-           
+            user = User.objects.get(pk=uid)
         except (TypeError, ValueError, OverflowError, User.DoesNotExist):
             user = None
 
@@ -276,7 +275,15 @@ class CreatePersonnelView(APIView):
             
             # Save the personnel
             personnel = serializer.save()
-            
+
+            # Send verification email
+            success, message = send_verification_email(personnel.agent)
+            if not success:
+                return Response({
+                    'status': 'error',
+                    'message': message
+                }, status=status.HTTP_400_BAD_REQUEST)
+
             return Response({
                 'status': 'success',
                 'message': 'Personnel created successfully. Please verify your email.',
@@ -286,6 +293,7 @@ class CreatePersonnelView(APIView):
             'status': 'error',
             'message': serializer.errors
         }, status=status.HTTP_400_BAD_REQUEST)
+
 class DeletePersonnelView(APIView):
 
 
@@ -928,4 +936,14 @@ class RatedOperatorsByLineView(APIView):
                 rated_operators.append(operator)
         
         serializer = PersonnelSerializer(rated_operators, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+class PosteByLineView(APIView):
+    def get(self, request, ligne_id):
+        try:
+            ligne = Ligne.objects.get(id=ligne_id)
+        except Ligne.DoesNotExist:
+            return Response({'error': 'Ligne not found'}, status=status.HTTP_404_NOT_FOUND)
+        
+        postes = Poste.objects.filter(lignes=ligne)
+        serializer = PosteSerializer(postes, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
