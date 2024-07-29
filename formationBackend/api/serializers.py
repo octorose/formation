@@ -11,7 +11,8 @@ from .models import Agent, Superviseur, Ligne, Personnel, RH, Module
 from datetime import datetime
 from django.core.files import File
 from django.conf import settings
-import logging
+from .utils import validate_email
+
 
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
@@ -69,6 +70,15 @@ class AgentSerializer(serializers.ModelSerializer):
             'password': {'write_only': True}
         }
 
+    def validate(self, data):
+        email = data.get('email')
+        if email:
+            is_valid, message = validate_email(email)
+            if not is_valid:
+                raise serializers.ValidationError({'email': False, 'message': message})
+
+        return data
+
     def create(self, validated_data):
         password = validated_data.pop('password', None)
         instance = self.Meta.model(**validated_data)
@@ -85,6 +95,7 @@ class AgentSerializer(serializers.ModelSerializer):
                 setattr(instance, attr, value)
         instance.save()
         return instance
+
 
 
 class PersonnelSerializer(serializers.ModelSerializer):
