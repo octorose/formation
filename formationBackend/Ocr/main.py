@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import cv2
 import easyocr
 import tempfile
+from fastapi.responses import JSONResponse
 
 app = FastAPI()
 
@@ -36,15 +37,11 @@ async def extract_ocr(file: UploadFile = File(...)):
         for resultat in resultats:
             text_image += resultat[1] + "\n"
 
-        #print("Texte extrait de l'image :")
-        #print(text_image)
-
         lignes = text_image.splitlines()
         nom = ""
         prenom = ""
-        datenaissance = ""
-        NumCin = ""
-
+        date_naissance = ""
+        cin = ""
 
         if len(lignes) > 12:
             nom = lignes[4].strip()
@@ -52,24 +49,22 @@ async def extract_ocr(file: UploadFile = File(...)):
             
             for ligne in lignes:
                 if '/' in ligne:  
-                    datenaissance = ligne.strip()
+                    date_naissance = ligne.strip()
                     break
-            NumCin = lignes[11].strip()
+            cin = lignes[11].strip()
 
         # Remplacer les espaces par des underscores dans le login
-        login = f"{nom.lower().replace(' ', '_')}{prenom.lower().replace(' ', '_')}{NumCin}@gmail.com"
-        password = NumCin
+        login = f"{nom.lower().replace(' ', '_')}{prenom.lower().replace(' ', '_')}{cin}@gmail.com"
+        password = cin
 
         return {
-            #"text_image": text_image,
             "nom": nom,
             "prenom": prenom,
-            "Date Naissance": datenaissance,
-            "Numero Cin": NumCin,
-            "Email": login,
+            "date_naissance": date_naissance,
+            "cin": cin,
+            "email": login,
             "username": nom,
             "password": password
         }
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
-
