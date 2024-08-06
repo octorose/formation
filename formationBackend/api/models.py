@@ -48,7 +48,7 @@ class Agent(AbstractUser):
     # Define REQUIRED_FIELDS
     REQUIRED_FIELDS = ['email', 'prenom', 'nom', 'date_naissance', 'addresse', 'cin', 'numerotel', 'role']
 
-    # Define your custom fields
+    email = models.EmailField(unique=True)
     is_email_verified = models.BooleanField(default=False)
     prenom = models.CharField(max_length=100)
     nom = models.CharField(max_length=100)

@@ -24,7 +24,7 @@ from django.views import View
 from django.http import HttpResponse
 from django.contrib.auth import get_user_model
 from django.http import HttpResponse
-from .utils import send_verification_email
+from .utils import send_verification_email,send_password_reset_email
 
 from .models import Test, Contrat
 from .serializers import TestSerializer, ContratSerializer
@@ -947,3 +947,44 @@ class PosteByLineView(APIView):
         postes = Poste.objects.filter(lignes=ligne)
         serializer = PosteSerializer(postes, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+    
+
+class PasswordResetRequestView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        email = request.data.get('email')
+        if not email:
+            return Response({'status': 'error', 'message': 'Email is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            return Response({'status': 'error', 'message': 'User with this email does not exist'}, status=status.HTTP_404_NOT_FOUND)
+
+        success, message = send_password_reset_email(user)
+        if not success:
+            return Response({'status': 'error', 'message': message}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response({'status': 'success', 'message': 'Password reset link sent successfully'}, status=status.HTTP_200_OK)
+
+class PasswordResetConfirmView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request, uidb64, token):
+        try:
+            uid = force_str(urlsafe_base64_decode(uidb64))
+            user = User.objects.get(pk=uid)
+        except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+            return Response({'status': 'error', 'message': 'Invalid token or user ID'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not default_token_generator.check_token(user, token):
+            return Response({'status': 'error', 'message': 'Invalid token'}, status=status.HTTP_400_BAD_REQUEST)
+
+        password = request.data.get('password')
+        if not password:
+            return Response({'status': 'error', 'message': 'Password is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        user.set_password(password)
+        user.save()
+        return Response({'status': 'success', 'message': 'Password reset successfully'}, status=status.HTTP_200_OK)

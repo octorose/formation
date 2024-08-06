@@ -4,7 +4,7 @@ from rest_framework_simplejwt.views import  TokenRefreshView
 from api.views import CreateSupervisorView,UpdatePersonnelView, CreateLigneView, PersonnelSearchView, PolyvalenceUpdateView,ModuleCreateView, EnFormationListView, CreatePersonnelView, RegisterView, CustomTokenObtainPairView, CreateRHView, PersonnelListView, PersonnelCountByMonthAPIView, PersonnelSumByEtatView, DeletePersonnelView, ModuleListView, SupervisorListView,SupervisorSearchView,SuperviseurDeleteView,LigneListView,PersonnelOperatorListView, UpdatePersonnelEtatToOperatorView,UpdateSuperviseurView,SupervisorLines,LigneDetailView,LineOperators, PolyvalenceViewSet, UnratedOperatorsByLineView,RatedOperatorsByLineView, Supervisorlisntingnopage,PosteByLineView
 from django.conf import settings
 from django.conf.urls.static import static
-from api.views import CreateSupervisorView, CreatePersonnelView, RegisterView, CustomTokenObtainPairView,VerifyEmailView
+from api.views import CreateSupervisorView, CreatePersonnelView, RegisterView, CustomTokenObtainPairView,VerifyEmailView,PasswordResetRequestView,PasswordResetConfirmView
 
 
 
@@ -35,7 +35,8 @@ urlpatterns = [
     path('api/modules/create/', ModuleCreateView.as_view(), name='module-create'),
 
     path('verify-email/<uidb64>/<token>/', VerifyEmailView.as_view(), name='verify_email'),
-    
+    path('api/password_reset/', PasswordResetRequestView.as_view(), name='password_reset_request'),
+    path('api/password_reset_confirm/<uidb64>/<token>/', PasswordResetConfirmView.as_view(), name='password_reset_confirm'),
 
     path('api/lignes/', LigneListView.as_view(), name='ligne-list'),
     path('api/lignes/create', CreateLigneView.as_view(), name='create-ligne'),

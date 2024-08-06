@@ -104,3 +104,31 @@ def smtp_check(email):
         logging.error(f"SMTP error: {e}")
         return False
 
+def send_password_reset_email(user):
+    from_email = "allouchhatim@gmail.com"
+    from_email_password = env('APP_SMTP_SERVE')
+    uid = urlsafe_base64_encode(force_bytes(user.pk))
+    token = default_token_generator.make_token(user)
+    reset_link = f"http://localhost:3000/reset-password-confirm/{uid}/{token}"
+    
+    subject = "Password Reset"
+    body = f"Please reset your password by clicking the link below:\n\n{reset_link}"
+
+    msg = MIMEMultipart()
+    msg['From'] = from_email
+    msg['To'] = user.email
+    msg['Subject'] = subject
+    msg.attach(MIMEText(body, 'plain'))
+
+    try:
+        server = smtplib.SMTP('smtp.gmail.com', 587)
+        server.set_debuglevel(1)  # Enable debug output
+        server.starttls()
+        server.login(from_email, from_email_password)
+        text = msg.as_string()
+        server.sendmail(from_email, user.email, text)
+        server.quit()
+        return True, "Password reset email sent successfully"
+    except Exception as e:
+        logging.error(f"Failed to send password reset email: {e}")
+        return False, str(e)
