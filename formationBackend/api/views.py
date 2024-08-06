@@ -952,3 +952,68 @@ class RatedOperatorsByLineView(APIView):
         serializer = PersonnelSerializer(rated_operators, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
+
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from rest_framework.permissions import AllowAny
+import cv2
+import easyocr
+import tempfile
+from django.core.files.uploadedfile import InMemoryUploadedFile
+
+reader = easyocr.Reader(['fr'])
+
+class extract_ocr(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        try:
+            file = request.FILES.get('file')
+            if not file or not isinstance(file, InMemoryUploadedFile):
+                return Response({'error': 'Invalid file type'}, status=status.HTTP_400_BAD_REQUEST)
+
+            with tempfile.NamedTemporaryFile(delete=False) as tmp:
+                for chunk in file.chunks():
+                    tmp.write(chunk)
+                image_path = tmp.name
+
+            image = cv2.imread(image_path)
+            resultats = reader.readtext(image)
+
+            text_image = ""
+            for resultat in resultats:
+                text_image += resultat[1] + "\n"
+
+            lignes = text_image.splitlines()
+            nom = ""
+            prenom = ""
+            datenaissance = ""
+            NumCin = ""
+
+            if len(lignes) > 12:
+                nom = lignes[4].strip()
+                prenom = lignes[5].strip()
+
+                for ligne in lignes:
+                    if '/' in ligne:  
+                        datenaissance = ligne.strip()
+                        break
+                NumCin = lignes[11].strip()
+
+            # Remplacer les espaces par des underscores dans le login
+            login = f"{nom.lower().replace(' ', '_')}{prenom.lower().replace(' ', '_')}{NumCin}@gmail.com"
+            password = f"{NumCin}{nom}"
+
+            return Response({
+                "nom": nom,
+                "prenom": prenom,
+                "Date Naissance": datenaissance,
+                "Numero Cin": NumCin,
+                "Email": login,
+                "username": nom,
+                "password": password
+            }, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
