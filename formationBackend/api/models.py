@@ -49,6 +49,7 @@ class Agent(AbstractUser):
     REQUIRED_FIELDS = ['email', 'prenom', 'nom', 'date_naissance', 'addresse', 'cin', 'numerotel', 'role']
 
     # Define your custom fields
+    is_email_verified = models.BooleanField(default=False)
     prenom = models.CharField(max_length=100)
     nom = models.CharField(max_length=100)
     date_naissance = models.DateField()
@@ -168,18 +169,18 @@ class Test(models.Model):
     date_test = models.DateField()
     responsables_ecole_formation = models.ManyToManyField('ResponsableEcoleFormation', related_name='tests')
     formateurs = models.ManyToManyField('Formateur', related_name='tests')
-    noteTest = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    note_test = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
     personnel = models.ForeignKey(Personnel, on_delete=models.CASCADE, related_name='tests')
 
     def __str__(self):
         responsables = ", ".join([str(r) for r in self.responsables_ecole_formation.all()])
         formateurs = ", ".join([str(f) for f in self.formateurs.all()])
         return (f"Test: {self.type_test} le {self.date_test} | Personnel: {self.personnel} | "
-                f"Note: {self.noteTest} | Responsables: {responsables} | Formateurs: {formateurs}")
+                f"Note: {self.note_test} | Responsables: {responsables} | Formateurs: {formateurs}")
 
 
 class Contrat(models.Model):
-    agent = models.OneToOneField(Agent, on_delete=models.CASCADE)
+    agent = models.ForeignKey(Agent, on_delete=models.CASCADE)
     type_contrat = models.CharField(max_length=100)
     date_creation_contrat = models.DateField()
     duree_contrat = models.IntegerField()

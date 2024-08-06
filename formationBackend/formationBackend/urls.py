@@ -4,7 +4,7 @@ from rest_framework_simplejwt.views import  TokenRefreshView
 from api.views import CreateSupervisorView,UpdatePersonnelView, CreateLigneView, PersonnelSearchView, PolyvalenceUpdateView,ModuleCreateView, EnFormationListView, CreatePersonnelView, RegisterView, CustomTokenObtainPairView, CreateRHView, PersonnelListView, PersonnelCountByMonthAPIView, PersonnelSumByEtatView, DeletePersonnelView, ModuleListView, SupervisorListView,SupervisorSearchView,SuperviseurDeleteView,LigneListView,PersonnelOperatorListView, UpdatePersonnelEtatToOperatorView,UpdateSuperviseurView,SupervisorLines,LigneDetailView,LineOperators, PolyvalenceViewSet, UnratedOperatorsByLineView,RatedOperatorsByLineView, Supervisorlisntingnopage
 from django.conf import settings
 from django.conf.urls.static import static
-from api.views import CreateSupervisorView, CreatePersonnelView, RegisterView, CustomTokenObtainPairView
+from api.views import CreateSupervisorView, CreatePersonnelView, RegisterView, CustomTokenObtainPairView,VerifyEmailView
 
 
 urlpatterns = [
@@ -33,6 +33,7 @@ urlpatterns = [
     path('api/modules/', ModuleListView.as_view(), name='module-list'),
     path('api/modules/create/', ModuleCreateView.as_view(), name='module-create'),
 
+    path('verify-email/<uidb64>/<token>/', VerifyEmailView.as_view(), name='verify_email'),
     
 
     path('api/lignes/', LigneListView.as_view(), name='ligne-list'),

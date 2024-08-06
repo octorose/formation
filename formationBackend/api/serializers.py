@@ -11,6 +11,7 @@ from .models import Agent, Superviseur, Ligne, Personnel, RH, Module
 from datetime import datetime
 from django.core.files import File
 from django.conf import settings
+from .utils import validate_email
 
 
 
@@ -69,6 +70,15 @@ class AgentSerializer(serializers.ModelSerializer):
             'password': {'write_only': True}
         }
 
+    def validate(self, data):
+        email = data.get('email')
+        if email:
+            is_valid, message = validate_email(email)
+            if not is_valid:
+                raise serializers.ValidationError({'email': False, 'message': message})
+
+        return data
+
     def create(self, validated_data):
         password = validated_data.pop('password', None)
         instance = self.Meta.model(**validated_data)
@@ -85,6 +95,7 @@ class AgentSerializer(serializers.ModelSerializer):
                 setattr(instance, attr, value)
         instance.save()
         return instance
+
 
 
 class PersonnelSerializer(serializers.ModelSerializer):
@@ -292,47 +303,54 @@ class FormateurSerializer(serializers.ModelSerializer):
 
 
 class TestSerializer(serializers.ModelSerializer):
-    responsables_ecole_formation = ResponsableFormationEcoleSerializer(many=True)
-    formateurs = FormateurSerializer(many=True)
-    personnel = PersonnelSerializer()
+     responsables_ecole_formation = ResponsableFormationEcoleSerializer(many=True)
+     formateurs = FormateurSerializer(many=True)
+     personnel = PersonnelSerializer()
 
-    class Meta:
-        model = Test
-        fields = ['id', 'type_test', 'date_test', 'responsables_ecole_formation', 'formateurs', 'noteTest', 'personnel']
+     class Meta:
+         model = Test
+         fields = ['id', 'type_test', 'date_test', 'responsables_ecole_formation', 'formateurs', 'note_test', 'personnel']
 
-    def create(self, validated_data):
-        responsables_data = validated_data.pop('responsables_ecole_formation')
-        formateurs_data = validated_data.pop('formateurs')
-        personnel_data = validated_data.pop('personnel')
+     def create(self, validated_data):
+         responsables_data = validated_data.pop('responsables_ecole_formation')
+         formateurs_data = validated_data.pop('formateurs')
+         personnel_data = validated_data.pop('personnel')
 
-        test = Test.objects.create(**validated_data)
+         test = Test.objects.create(**validated_data)
 
-        for responsable_data in responsables_data:
-            responsable, created = ResponsableEcoleFormation.objects.get_or_create(**responsable_data)
-            test.responsables_ecole_formation.add(responsable)
+         for responsable_data in responsables_data:
+             responsable, created = ResponsableEcoleFormation.objects.get_or_create(**responsable_data)
+             test.responsables_ecole_formation.add(responsable)
 
-        for formateur_data in formateurs_data:
-            formateur, created = Formateur.objects.get_or_create(**formateur_data)
-            test.formateurs.add(formateur)
+         for formateur_data in formateurs_data:
+             formateur, created = Formateur.objects.get_or_create(**formateur_data)
+             test.formateurs.add(formateur)
 
-        personnel, created = Personnel.objects.get_or_create(**personnel_data)
-        test.personnel = personnel
-        test.save()
+         personnel, created = Personnel.objects.get_or_create(**personnel_data)
+         test.personnel = personnel
+         test.save()
 
-        return test
+         return test
+
 
 class ContratSerializer(serializers.ModelSerializer):
-    agent = AgentSerializer()
+    agent = serializers.PrimaryKeyRelatedField(queryset=Agent.objects.all())
 
     class Meta:
         model = Contrat
         fields = ['id', 'agent', 'type_contrat', 'date_creation_contrat', 'duree_contrat']
 
     def create(self, validated_data):
-        agent_data = validated_data.pop('agent')
-        agent, created = Agent.objects.get_or_create(**agent_data)
-        contrat = Contrat.objects.create(agent=agent, **validated_data)
-        return contrat
+        return Contrat.objects.create(**validated_data)
+class ContratDisplaySerializer(serializers.ModelSerializer):
+    agent = AgentSerializer()
+
+    class Meta:
+        model = Contrat
+        fields = ['id', 'agent', 'type_contrat', 'date_creation_contrat', 'duree_contrat']
+
+
+
 
 
 
@@ -358,3 +376,4 @@ class PolyvalenceUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Polyvalence
         fields = ['score', 'comments']
+
