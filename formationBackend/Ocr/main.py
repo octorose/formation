@@ -2,8 +2,8 @@ from fastapi import FastAPI, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 import cv2
 import easyocr
-import tempfile
 from fastapi.responses import JSONResponse
+import tempfile
 
 app = FastAPI()
 
@@ -40,29 +40,30 @@ async def extract_ocr(file: UploadFile = File(...)):
         lignes = text_image.splitlines()
         nom = ""
         prenom = ""
-        date_naissance = ""
-        cin = ""
+        datenaissance = ""
+        NumCin = ""
 
         if len(lignes) > 12:
             nom = lignes[4].strip()
             prenom = lignes[5].strip()
-            
+
             for ligne in lignes:
                 if '/' in ligne:  
-                    date_naissance = ligne.strip()
+                    datenaissance = ligne.strip()
                     break
-            cin = lignes[11].strip()
+            NumCin = lignes[11].strip()
 
         # Remplacer les espaces par des underscores dans le login
-        login = f"{nom.lower().replace(' ', '_')}{prenom.lower().replace(' ', '_')}{cin}@gmail.com"
-        password = cin
+        login = f"{nom.lower().replace(' ', '_')}{prenom.lower().replace(' ', '_')}{NumCin}@gmail.com"
+        password = f"{NumCin}{nom}"
 
         return {
+            #"text_image": text_image,
             "nom": nom,
             "prenom": prenom,
-            "date_naissance": date_naissance,
-            "cin": cin,
-            "email": login,
+            "Date Naissance": datenaissance,
+            "Numero Cin": NumCin,
+            "Email": login,
             "username": nom,
             "password": password
         }
