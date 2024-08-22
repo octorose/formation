@@ -41,11 +41,11 @@ class Agent(AbstractUser):
         ('ResponsableFormation', 'Responsable Formation'),
         ('ResponsableEcoleFormation', 'Responsable Ecole Formation'),
         ('Formateur', 'Formateur'),
+        ('Segment', 'Segment'),  # Added Segment role
         ('Superviseur', 'Superviseur'),
         ('Personnel', 'Personnel'),
     ]
 
-    # Define REQUIRED_FIELDS
     REQUIRED_FIELDS = ['email', 'prenom', 'nom', 'date_naissance', 'addresse', 'cin', 'numerotel', 'role']
 
     email = models.EmailField(unique=True)
@@ -58,16 +58,12 @@ class Agent(AbstractUser):
     numerotel = models.CharField(max_length=20)
     role = models.CharField(max_length=50, choices=ROLE_CHOICES, default='Personnel')
 
-    # Add any additional fields as needed
     temporary_session = models.BooleanField(default=False)
-    # Override username field to make it nullable
     username = models.CharField(max_length=150, unique=True, null=True, blank=True)
     site = models.CharField(max_length=100, blank=True, null=True)
 
     def __str__(self):
         return f"{self.prenom} {self.nom} ({self.role})"
-
-
 class RH(models.Model):
     agent = models.OneToOneField(Agent, on_delete=models.CASCADE, null=True, blank=True)
     department = models.CharField(max_length=100, blank=True, null=True)
@@ -80,20 +76,35 @@ class ResponsableFormation(models.Model):
 
 class ResponsableEcoleFormation(models.Model):
     agent = models.OneToOneField(Agent, on_delete=models.CASCADE, null=True, blank=True)
-
-
-class Formateur(models.Model):
-    agent = models.OneToOneField(Agent, on_delete=models.CASCADE, null=True, blank=True)
-    isAffecteur = models.BooleanField(default=False)
-    Type = models.CharField(max_length=100, null=False, blank=False, default="Theorique")
-
-
 class Ligne(models.Model):
     name = models.CharField(max_length=100)
     superviseur = models.ForeignKey('Superviseur', on_delete=models.CASCADE, null=True, blank=True)
 
     def __str__(self):
         return self.name
+
+class Segment(models.Model):
+    agent = models.OneToOneField(Agent, on_delete=models.CASCADE, null=True, blank=True, db_constraint=False)
+    ligne = models.ForeignKey(Ligne, on_delete=models.CASCADE, related_name='segments', null=True, blank=True)
+
+
+class Formateur(models.Model):
+    agent = models.OneToOneField(Agent, on_delete=models.CASCADE, null=True, blank=True)
+    isAffecteur = models.BooleanField(default=False)
+    Type = models.CharField(max_length=100, null=False, blank=False, default="Theorique")
+    segment = models.ForeignKey(Segment, on_delete=models.CASCADE, blank=True, null=True)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                check=(
+                    (models.Q(Type='Pratique') & models.Q(segment__isnull=False)) |
+                    (models.Q(Type__in=['Theorique', 'Other']) & models.Q(segment__isnull=True))
+                ),
+                name='formateur_type_segment_consistency'
+            )
+        ]
+
 
 
 class Superviseur(models.Model):

@@ -1,7 +1,7 @@
 # serializers.py
 from rest_framework import serializers, status
 from rest_framework import serializers
-from .models import Agent, Superviseur, Ligne, Personnel, Polyvalence, Test, Contrat ,ResponsableEcoleFormation,Formateur ,Test, Contrat ,Poste,ResponsableFormation
+from .models import Agent, Superviseur, Ligne, Segment, Personnel, Polyvalence, Test, Contrat ,ResponsableEcoleFormation,Formateur ,Test, Contrat ,Poste,ResponsableFormation
 from django.contrib.auth import authenticate
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -96,6 +96,46 @@ class AgentSerializer(serializers.ModelSerializer):
                 setattr(instance, attr, value)
         instance.save()
         return instance
+class LigneSerializer(serializers.ModelSerializer):
+    superviseur_nom = serializers.CharField(source='superviseur.agent.nom', read_only=True)
+    superviseur_prenom = serializers.CharField(source='superviseur.agent.prenom', read_only=True)
+
+    class Meta:
+        model = Ligne
+        fields = ['id', 'name', 'superviseur_nom', 'superviseur_prenom', 'superviseur']
+
+    def validate(self, data):
+        if data.get('superviseur') is None:
+            raise serializers.ValidationError("A supervisor must be assigned to the ligne.")
+        return data
+from django.db import transaction
+
+class SegmentSerializer(serializers.ModelSerializer):
+    agent = AgentSerializer()
+    ligne = LigneSerializer()
+
+    class Meta:
+        model = Segment
+        fields = ['id', 'agent', 'ligne']
+        required_fields = ['agent', 'ligne']
+
+    def create(self, validated_data):
+        agent_data = validated_data.pop('agent')
+        agent = Agent.objects.create(**agent_data)
+        segment = Segment.objects.create(agent=agent, **validated_data)
+        return segment
+
+    def update(self, instance, validated_data):
+        agent_data = validated_data.pop('agent', None)
+
+        if agent_data:
+            agent_serializer = AgentSerializer(instance.agent, data=agent_data)
+            if agent_serializer.is_valid(raise_exception=True):
+                agent_serializer.save()
+
+        instance.ligne = validated_data.get('ligne', instance.ligne)
+        instance.save()
+        return instance
 
 class PersonnelSerializer(serializers.ModelSerializer):
     agent = AgentSerializer()
@@ -110,18 +150,7 @@ class PersonnelSerializer(serializers.ModelSerializer):
         agent = AgentSerializer.create(AgentSerializer(), validated_data=agent_data)
         personnel = Personnel.objects.create(agent=agent, **validated_data)
         return personnel
-class LigneSerializer(serializers.ModelSerializer):
-    superviseur_nom = serializers.CharField(source='superviseur.agent.nom', read_only=True)
-    superviseur_prenom = serializers.CharField(source='superviseur.agent.prenom', read_only=True)
 
-    class Meta:
-        model = Ligne
-        fields = ['id', 'name', 'superviseur_nom', 'superviseur_prenom', 'superviseur']
-
-    def validate(self, data):
-        if data.get('superviseur') is None:
-            raise serializers.ValidationError("A supervisor must be assigned to the ligne.")
-        return data
     
 class SuperviseurSerializer(serializers.ModelSerializer):
     agent = AgentSerializer(required=False)  # Allow partial updates without requiring password
