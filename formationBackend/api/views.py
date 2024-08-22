@@ -27,15 +27,12 @@ from django.http import HttpResponse
 from django.contrib.auth import get_user_model
 from django.http import HttpResponse
 from .utils import send_verification_email,send_password_reset_email
-
 from .models import Test, Contrat
-<<<<<<< HEAD
 from .serializers import TestSerializer, ContratSerializer,SegmentSerializer
-=======
 from .serializers import TestSerializer, ContratSerializer
 import logging
 import json
->>>>>>> main
+
 
 class PersonnelSumByEtatView(APIView):
     permission_classes = [AllowAny]
