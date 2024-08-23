@@ -28,7 +28,7 @@ from django.contrib.auth import get_user_model
 from django.http import HttpResponse
 from .utils import send_verification_email,send_password_reset_email
 from .models import Test, Contrat
-from .serializers import TestSerializer, ContratSerializer,SegmentSerializer
+from .serializers import TestSerializer, ContratSerializer,SegmentSerializer,SegmentCreateSerializer
 from .serializers import TestSerializer, ContratSerializer
 import logging
 import json
@@ -714,9 +714,9 @@ class ListSegmentLineView(APIView):
         return paginator.get_paginated_response(serializer.data)
     
 class CreateSegmentView(APIView):
-    permission_classes = [AllowAny]
+    # permission_classes = [AllowAny]
     def post(self, request):
-        serializer = SegmentSerializer(data=request.data)
+        serializer = SegmentCreateSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()         
             segment = serializer.save()

@@ -110,6 +110,23 @@ class LigneSerializer(serializers.ModelSerializer):
         return data
 from django.db import transaction
 
+class SegmentCreateSerializer(serializers.ModelSerializer):
+    agent = AgentSerializer()
+    ligne = serializers.PrimaryKeyRelatedField(queryset=Ligne.objects.all())
+
+    class Meta:
+        model = Segment
+        fields = ['id', 'agent', 'ligne']
+
+    def create(self, validated_data):
+        segment = Segment.objects.create(**validated_data)
+        return segment
+
+    def update(self, instance, validated_data):
+        instance.agent = validated_data.get('agent', instance.agent)
+        instance.ligne = validated_data.get('ligne', instance.ligne)
+        instance.save()
+        return instance
 class SegmentSerializer(serializers.ModelSerializer):
     agent = AgentSerializer()
     ligne = LigneSerializer()

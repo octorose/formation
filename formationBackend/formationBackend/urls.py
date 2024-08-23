@@ -56,7 +56,7 @@ urlpatterns = [
     path('api/segments/', ListSegmentView.as_view(), name='list_segments'),
     path('api/segments/line/<int:line_id>/', ListSegmentLineView.as_view(), name='list_segments_by_line'),
     path('api/segments/create/', CreateSegmentView.as_view(), name='create_segment'),
-    path('segments/<int:pk>/update/', UpdateSegmentView.as_view(), name='update_segment'),
+    path('api/segments/<int:pk>/update/', UpdateSegmentView.as_view(), name='update_segment'),
     path('segments/<int:pk>/delete/', DeleteSegmentView.as_view(), name='delete_segment'),
     path('segments/search/', SearchSegmentView.as_view(), name='search_segment'),
     path('api/',include('api.urls')),
