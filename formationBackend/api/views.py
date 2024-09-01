@@ -3,15 +3,16 @@ from rest_framework.views import APIView
 from django.http import HttpResponseRedirect
 from django.conf import settings
 from rest_framework.response import Response
+from rest_framework.generics import UpdateAPIView, RetrieveAPIView, DestroyAPIView
 from .models import Poste
 from .serializers import PosteSerializer
 from django.db.models import Count
 from rest_framework import status, generics
-from .serializers import SuperviseurSerializer,PolyvalenceUpdateSerializer,ContratDisplaySerializer, PolyvalenceSerializer,  PersonnelSerializer, RHSerializer, PersonnelCountSerializer, AgentSerializer, ModuleSerializer,ResponsableFormationEcoleSerializer,FormateurSerializer, LigneSerializer,PosteSerializer,PersonnelUpdateEtatSerializer
+from .serializers import SuperviseurSerializer,PolyvalenceUpdateSerializer,GroupSerializer,ContratDisplaySerializer, PolyvalenceSerializer,  PersonnelSerializer, RHSerializer, PersonnelCountSerializer, AgentSerializer, ModuleSerializer,ResponsableFormationEcoleSerializer,FormateurSerializer, LigneSerializer,PosteSerializer,PersonnelUpdateEtatSerializer
 from rest_framework.permissions import AllowAny
 from rest_framework_simplejwt.views import TokenObtainPairView
 from .serializers import CustomTokenObtainPairSerializer
-from .models import Agent, RH, Segment, Polyvalence, ResponsableFormation, ResponsableEcoleFormation, Superviseur, Personnel, Ligne,Formateur,Poste
+from .models import Agent, RH, Segment, Polyvalence, ResponsableFormation, ResponsableEcoleFormation, Superviseur, Personnel, Ligne,Formateur,Poste, Group
 from django.contrib.auth.hashers import make_password
 from django.db.models.functions import TruncMonth, Coalesce
 from django.http import JsonResponse
@@ -163,7 +164,7 @@ class VerifyEmailView(APIView):
             # Mark user as verified or activate the user
             user.is_active = True  # Assuming you have an 'is_active' field
             user.save()
-            return HttpResponseRedirect(f"{settings.SITE_URL}/SuccessfulVerification")
+            return HttpResponseRedirect(f"{settings.FRONT_URL}/SuccessfulVerification")
         else:
             return HttpResponse('Email verification failed')
     
@@ -265,7 +266,67 @@ class SuperviseurDeleteView(APIView):
             return Response({'message': 'Supervisor and associated Agent deleted successfully.'}, status=status.HTTP_204_NO_CONTENT)
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
-        
+
+class GroupListCreateView(APIView):
+
+    def get(self, request):
+        groups = Group.objects.all()
+        serializer = GroupSerializer(groups, many=True)
+        return Response(serializer.data)
+
+    def post(self, request):
+        serializer = GroupSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class GroupUpdateView(UpdateAPIView):
+    queryset = Group.objects.all()
+    serializer_class = GroupSerializer
+
+    def put(self, request, pk):
+        group = self.get_object()
+        if not group:
+            return Response({'error': 'Group not found'}, status=status.HTTP_404_NOT_FOUND)
+        serializer = GroupSerializer(group, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+class GroupDeleteView(DestroyAPIView):
+    queryset = Group.objects.all()
+
+    def delete(self, request, pk):
+        group = self.get_object()
+        if not group:
+            return Response({'error': 'Group not found'}, status=status.HTTP_404_NOT_FOUND)
+        group.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+class GroupListCreateView(APIView):
+
+    def get(self, request):
+        groups = Group.objects.all()
+        serializer = GroupSerializer(groups, many=True)
+        return Response(serializer.data)
+
+    def post(self, request):
+        serializer = GroupSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+from rest_framework.generics import CreateAPIView
+from .models import SegDepartement
+from .serializers import SegDepartementSerializer
+class SegDepartementCreateView(CreateAPIView):
+    queryset = SegDepartement.objects.all()
+    serializer_class = SegDepartementSerializer
+
 class CreatePersonnelView(APIView):
 
     def post(self, request):
@@ -273,21 +334,33 @@ class CreatePersonnelView(APIView):
         etat = data.get('etat')
         ligne = data.get('ligne')
         poste = data.get('poste')
+        group_id = data.get('group_id')  # Get the group ID from the request data
 
-        if etat not in ['En Formation', 'Candidate', 'Candidat', 'Operateur']:
+        # Validate etat
+        if etat not in ['En Formation', 'Candidat', 'Operateur']:
             return Response({
                 'status': 'error',
-                'message': 'Invalid etat value. Must be "En Formation", "Candidate", or "Operateur".'
+                'message': 'Invalid etat value. Must be "En Formation", "Candidat", or "Operateur".'
             }, status=status.HTTP_400_BAD_REQUEST)
-        
-        serializer = PersonnelSerializer(data=data)
-        if serializer.is_valid():
-            if etat == 'Operateur' and (ligne is None or poste is None):
+
+        # Validate presence of ligne and poste for Operateur
+        if etat == 'Operateur' and (ligne is None or poste is None):
+            return Response({
+                'status': 'error',
+                'message': 'Ligne and Poste are required for Operateur.'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # Handle group only if the etat is 'Candidat'
+        if etat == 'Candidat':
+            if group_id is None:
                 return Response({
                     'status': 'error',
-                    'message': 'Ligne and Poste are required for Operateur.'
+                    'message': 'Group ID is required for Candidat.'
                 }, status=status.HTTP_400_BAD_REQUEST)
-            
+            data['group'] = group_id
+
+        serializer = PersonnelSerializer(data=data)
+        if serializer.is_valid():
             # Save the personnel
             personnel = serializer.save()
 
@@ -308,9 +381,23 @@ class CreatePersonnelView(APIView):
             'status': 'error',
             'message': serializer.errors
         }, status=status.HTTP_400_BAD_REQUEST)
+    
+from rest_framework.generics import ListAPIView
+from .models import SegDepartement
+from .serializers import SegDepartementSerializer
 
+class SegDepartementListView(ListAPIView):
+    queryset = SegDepartement.objects.all()
+    serializer_class = SegDepartementSerializer
+
+from rest_framework.generics import RetrieveUpdateAPIView
+class SegDepartementUpdateView(RetrieveUpdateAPIView):
+    queryset = SegDepartement.objects.all()
+    serializer_class = SegDepartementSerializer
+
+class SegDepartementDeleteView(DestroyAPIView):
+    queryset = SegDepartement.objects.all()
 class DeletePersonnelView(APIView):
-
 
     def delete(self, request, pk, format=None):
         try:
@@ -610,10 +697,10 @@ class CreateFormateurView(APIView):
     def post(self, request):
         serializer = FormateurSerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save()
+            formateur = serializer.save()  # This returns the Formateur instance.
 
             # Send verification email
-            success, message = send_verification_email(serializer.data['agent'])
+            success, message = send_verification_email(formateur.agent)  # Pass the agent instance.
             if not success:
                 return Response({
                     'status': 'error',
@@ -623,7 +710,7 @@ class CreateFormateurView(APIView):
             return Response({
                 'status': 'success',
                 'message': 'Formateur created successfully',
-                'formateur_id': serializer.data['id']
+                'formateur_id': formateur.id
             }, status=status.HTTP_201_CREATED)
         return Response({
             'status': 'error',
@@ -714,29 +801,29 @@ class ListSegmentLineView(APIView):
         return paginator.get_paginated_response(serializer.data)
     
 class CreateSegmentView(APIView):
-    # permission_classes = [AllowAny]
     def post(self, request):
         serializer = SegmentCreateSerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save()         
-            segment = serializer.save()
+            segment = serializer.save()  # Ensure agent is created with hashed password
+
+            # Send verification email
             success, message = send_verification_email(segment.agent)
             if not success:
                 return Response({
                     'status': 'error',
                     'message': message
                 }, status=status.HTTP_400_BAD_REQUEST)
+            
             return Response({
-                    'status': 'success',
-                    'message': 'Personnel created successfully. Please verify your email.',
-                    'personnel_id': serializer.data['id']
-                }, status=status.HTTP_201_CREATED)
+                'status': 'success',
+                'message': 'Segment created successfully. Please verify your email.',
+                'segment_id': segment.id  # Return segment ID
+            }, status=status.HTTP_201_CREATED)
 
         return Response({
             'status': 'error',
             'message': serializer.errors
         }, status=status.HTTP_400_BAD_REQUEST)
-
 
 class SearchSegmentView(APIView):
     def get(self, request):
@@ -766,6 +853,7 @@ class DeleteSegmentView(APIView):
 
 
 class UpdateSegmentView(APIView):
+
     def put(self, request, pk, format=None):
         try:
             segment = get_object_or_404(Segment, pk=pk)
@@ -795,6 +883,7 @@ class UpdateSegmentView(APIView):
 
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    
 class ListTestView(generics.ListAPIView):
 
     queryset = Test.objects.all()
@@ -818,7 +907,6 @@ class CreateTestView(APIView):
         }, status=status.HTTP_400_BAD_REQUEST)
 
 class SearchTestView(APIView):
-
 
     def get(self, request):
         query = request.query_params.get('query', '')
@@ -938,7 +1026,7 @@ class UpdateContratView(APIView):
 class ListAgentView(generics.ListAPIView):
     queryset = Agent.objects.all()
     serializer_class = AgentSerializer
-    
+    pagination_class = None
             
 
 class LigneListView(generics.ListAPIView):

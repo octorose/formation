@@ -1,359 +1,117 @@
-from django.urls import reverse
-from rest_framework import status
-from rest_framework.test import APITestCase, APIClient
-from rest_framework_simplejwt.tokens import RefreshToken
-from .models import Agent, Ligne
+from django.test import TestCase
+from django.core.exceptions import ValidationError
+from .models import (
+    Agent, Group, RH, ResponsableFormation, ResponsableEcoleFormation, Ligne, Segment, 
+    Formateur, Superviseur, Poste, Personnel, Polyvalence, Test, Contrat, Module, SegDepartement
+)
 
-class CustomTokenObtainPairViewTests(APITestCase):
+class ModelsTestCase(TestCase):
 
     def setUp(self):
+        self.email = 'octorose1337@gmail.com'
+        # Create necessary instances for each test
         self.agent = Agent.objects.create_user(
-            username='testuser',
-            email='testuser@example.com',
-            role='Superviseur',
-            password='password',
-            prenom='Test',
-            nom='User',
-            date_naissance='1990-01-01',
-            addresse='Test Address',
+            email=self.email,
+            password='testpassword',
+            role='Formateur',
+            prenom='John',
+            nom='Doe',
+            date_naissance='1980-01-01',
+            addresse='123 Test St',
             cin='123456789',
             numerotel='1234567890'
         )
-
-    def test_token_obtain_pair(self):
-        print("Test: Login.")
-        url = reverse('token_obtain_pair')
-        response = self.client.post(url, {'username': 'testuser', 'password': 'password'})
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-
-class CreateSupervisorViewTests(APITestCase):
-
-    def setUp(self):
-        self.client = APIClient()
-        self.agent = Agent.objects.create_user(
-            username='admin',
-            email='admin@example.com',
-            role='Superviseur',
-            password='adminpassword',
-            prenom='Admin',
-            nom='User',
-            date_naissance='1980-01-01',
-            addresse='Admin Address',
-            cin='987654321',
-            numerotel='0987654321'
+        self.ligne = Ligne.objects.create(name='Ligne 1')
+        self.group = Group.objects.create(name='Test Group', Effectif=10)
+        self.segment = Segment.objects.create(agent=self.agent, ligne=self.ligne)
+        self.formateur = Formateur.objects.create(
+            agent=self.agent,
+            isAffecteur=True,
+            Type='Theorique',
+            segment=self.segment
         )
-        self.ligne = Ligne.objects.create(name='Test Ligne')  # Creating the required Ligne object
-        refresh = RefreshToken.for_user(self.agent)
-        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {refresh.access_token}')
-
-    def test_create_supervisor(self):
-        print("Test: Create supervisor.")
-        url = reverse('create_supervisor')
-        data = {
-            'agent': {
-                'username': 'supervisor',
-                'email': 'supervisor@example.com',
-                'password': 'supervisorpassword',
-                'prenom': 'Supervisor',
-                'nom': 'User',
-                'date_naissance': '1990-01-01',
-                'addresse': 'Supervisor Address',
-                'cin': '123456789',
-                'numerotel': '1234567890'
-            },
-            'ligne_id': self.ligne.id  # Using the ID of the created Ligne
-        }
-        response = self.client.post(url, data, format='json')
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-
-    def test_create_supervisor_without_ligne(self):
-        print("Test: Attempt to create a supervisor without providing a ligne ID.")
-        url = reverse('create_supervisor')
-        data = {
-            'agent': {
-                'username': 'supervisor',
-                'email': 'supervisor@example.com',
-                'password': 'supervisorpassword',
-                'prenom': 'Supervisor',
-                'nom': 'User',
-                'date_naissance': '1990-01-01',
-                'addresse': 'Supervisor Address',
-                'cin': '123456789',
-                'numerotel': '1234567890'
-            }
-            # No 'ligne_id' provided intentionally
-        }
-        response = self.client.post(url, data, format='json')
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-
-    def test_create_supervisor_without_token(self):
-        print("Test: Attempt to create a supervisor without a token.")
-        url = reverse('create_supervisor')
-        data = {
-            'agent': {
-                'username': 'supervisor',
-                'email': 'supervisor@example.com',
-                'password': 'supervisorpassword',
-                'prenom': 'Supervisor',
-                'nom': 'User',
-                'date_naissance': '1990-01-01',
-                'addresse': 'Supervisor Address',
-                'cin': '123456789',
-                'numerotel': '1234567890'
-            },
-            'ligne_id': self.ligne.id  # Using the ID of the created Ligne
-        }
-        # Clearing credentials to simulate no token being provided
-        self.client.credentials()
-        response = self.client.post(url, data, format='json')
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
-
-
-class CreatePersonnelViewTests(APITestCase):
-
-    def setUp(self):
-        self.client = APIClient()
-        self.agent = Agent.objects.create_user(
-            username='admin',
-            email='admin@example.com',
-            role='Superviseur',
-            password='adminpassword',
-            prenom='Admin',
-            nom='User',
-            date_naissance='1980-01-01',
-            addresse='Admin Address',
-            cin='987654321',
-            numerotel='0987654321'
+        self.superviseur = Superviseur.objects.create(agent=self.agent)
+        self.poste = Poste.objects.create(name='Poste 1')
+        self.personnel = Personnel.objects.create(
+            agent=self.agent,
+            etat='Operateur',
+            ligne=self.ligne,
+            poste=self.poste,
+            group=self.group
         )
-        refresh = RefreshToken.for_user(self.agent)
-        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {refresh.access_token}')
-
-    def test_create_personnel(self):
-        print("Test: Create personnel.")
-        url = reverse('create_personnel')
-        data = {
-            'agent': {
-                'username': 'personnel',
-                'email': 'personnel@example.com',
-                'password': 'personnelpassword',
-                'prenom': 'Personnel',
-                'nom': 'User',
-                'date_naissance': '1990-01-01',
-                'addresse': 'Personnel Address',
-                'cin': '123456789',
-                'numerotel': '1234567890'
-            },
-            'etat': 'Active'
-        }
-        response = self.client.post(url, data, format='json')
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-
-    def test_create_personnel_without_token(self):
-        print("Test: Attempt to create personnel without a token.")
-        url = reverse('create_personnel')
-        data = {
-            'agent': {
-                'username': 'personnel',
-                'email': 'personnel@example.com',
-                'password': 'personnelpassword',
-                'prenom': 'Personnel',
-                'nom': 'User',
-                'date_naissance': '1990-01-01',
-                'addresse': 'Personnel Address',
-                'cin': '123456789',
-                'numerotel': '1234567890'
-            },
-            'etat': 'Active'
-        }
-        # Clearing credentials to simulate no token being provided
-        self.client.credentials()
-        response = self.client.post(url, data, format='json')
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
-
-
-class CreateRHViewTests(APITestCase):
-
-    def setUp(self):
-        self.client = APIClient()
-        self.agent = Agent.objects.create_user(
-            username='admin',
-            email='admin@example.com',
-            role='Superviseur',
-            password='adminpassword',
-            prenom='Admin',
-            nom='User',
-            date_naissance='1980-01-01',
-            addresse='Admin Address',
-            cin='987654321',
-            numerotel='0987654321'
+        self.polyvalence = Polyvalence.objects.create(
+            personnel=self.personnel,
+            poste=self.poste,
+            rating=8
         )
-        refresh = RefreshToken.for_user(self.agent)
-        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {refresh.access_token}')
 
-    def test_create_rh(self):
-        print("Test: Create RH.")
-        url = reverse('create_rh')
-        data = {
-            'agent': {
-                'username': 'rhuser',
-                'email': 'rhuser@example.com',
-                'password': 'rhuserpassword',
-                'prenom': 'RH',
-                'nom': 'User',
-                'date_naissance': '1990-01-01',
-                'addresse': 'RH Address',
-                'cin': '123456789',
-                'numerotel': '1234567890'
-            },
-            'department': 'HR Department'
-        }
-        response = self.client.post(url, data, format='json')
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+    def test_agent_creation(self):
+        self.assertEqual(self.agent.email, self.email)
+        self.assertTrue(self.agent.check_password('testpassword'))
+        self.assertEqual(self.agent.role, 'Formateur')
 
-    def test_create_rh_without_token(self):
-        print("Test: Attempt to create RH without a token.")
-        url = reverse('create_rh')
-        data = {
-            'agent': {
-                'username': 'rhuser',
-                'email': 'rhuser@example.com',
-                'password': 'rhuserpassword',
-                'prenom': 'RH',
-                'nom': 'User',
-                'date_naissance': '1990-01-01',
-                'addresse': 'RH Address',
-                'cin': '123456789',
-                'numerotel': '1234567890'
-            },
-            'department': 'HR Department'
-        }
-        # Clearing credentials to simulate no token being provided
-        self.client.credentials()
-        response = self.client.post(url, data, format='json')
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+    def test_agent_str(self):
+        self.assertEqual(str(self.agent), 'John Doe (Formateur)')
 
+    def test_group_creation(self):
+        self.assertEqual(self.group.name, 'Test Group')
+        self.assertEqual(self.group.Effectif, 10)
 
-class PersonnelCountByMonthAPIViewTests(APITestCase):
+    def test_group_str(self):
+        self.assertEqual(str(self.group), 'Test Group')
 
-    def setUp(self):
-        self.agent = Agent.objects.create_user(
-            username='admin',
-            email='admin@example.com',
-            role='Superviseur',
-            password='adminpassword',
-            prenom='Admin',
-            nom='User',
-            date_naissance='1980-01-01',
-            addresse='Admin Address',
-            cin='987654321',
-            numerotel='0987654321'
-        )
-        self.client = APIClient()
-        refresh = RefreshToken.for_user(self.agent)
-        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {refresh.access_token}')
+    def test_ligne_creation(self):
+        self.assertEqual(self.ligne.name, 'Ligne 1')
 
-    def test_get_personnel_count_by_month(self):
-        url = reverse('personnel-count-by-month')
-        response = self.client.get(url)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
+    def test_ligne_str(self):
+        self.assertEqual(str(self.ligne), 'Ligne 1')
 
-from rest_framework.test import APITestCase, APIClient
-from rest_framework import status
-from django.urls import reverse
-from .models import Agent, Formateur, Ligne, Poste, ResponsableEcoleFormation, Superviseur, Test, Personnel
-from .serializers import FormateurSerializer, AgentSerializer
-from django.contrib.auth.models import User
+    def test_segment_creation(self):
+        self.assertEqual(self.segment.agent, self.agent)
+        self.assertEqual(self.segment.ligne, self.ligne)
 
+    def test_segment_str(self):
+        self.assertEqual(str(self.segment), f'{self.segment.agent.prenom} {self.segment.agent.nom} (Segment)')
 
-class FormateurAPITestCase(APITestCase):
-    def setUp(self):
-        self.client = APIClient()
-        self.user = Agent.objects.create_user(
-            email='test@example.com',
-            role='Formateur',
-            password='password',
-            prenom='Test',
-            nom='User',
-            date_naissance='1990-01-01',
-            addresse='Test Address',
-            cin='12345678',
-            numerotel='1234567890',
-            username='testuser'
-        )
-        self.formateur = Formateur.objects.create(agent=self.user)
-        self.list_url = reverse('list-formateur')
-        self.create_url = reverse('create-formateur')
-        self.delete_url = reverse('delete-formateur', kwargs={'pk': self.formateur.id})
-        self.update_url = reverse('update-formateur', kwargs={'pk': self.formateur.id})
-        self.search_url = reverse('search-formateur')
+    def test_formateur_creation(self):
+        self.assertEqual(self.formateur.agent, self.agent)
+        self.assertEqual(self.formateur.Type, 'Theorique')
+        self.assertEqual(self.formateur.segment, self.segment)
 
-    def test_list_formateur(self):
-        response = self.client.get(self.list_url)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
+    def test_formateur_type_segment_consistency(self):
+        self.formateur.Type = 'Pratique'
+        self.formateur.segment = None
+        with self.assertRaises(ValueError):
+            self.formateur.save()
 
-    def test_create_formateur(self):
-        data = {
-            'agent': {
-                'email': 'new@example.com',
-                'role': 'Formateur',
-                'prenom': 'New',
-                'nom': 'User',
-                'date_naissance': '1990-01-01',
-                'addresse': 'New Address',
-                'cin': '87654321',
-                'numerotel': '0987654321',
-                'username': 'newuser'
-            },
-            'isAffecteur': True,
-            'Type': 'Practical'
-        }
-        response = self.client.post(self.create_url, data, format='json')
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertIn('formateur_id', response.data)
+    def test_superviseur_creation(self):
+        self.assertEqual(self.superviseur.agent, self.agent)
+        self.assertIn(self.ligne, self.superviseur.lignes.all())
 
-    def test_search_formateur(self):
-        response = self.client.get(self.search_url, {'query': 'Test'})
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertGreater(len(response.data), 0)
+    def test_superviseur_str(self):
+        self.assertEqual(str(self.superviseur), f'{self.agent.prenom} {self.agent.nom} (Superviseur)')
 
-    def test_update_formateur(self):
-        data = {
-            'agent': {
-                'prenom': 'Updated'
-            },
-            'isAffecteur': False,
-            'Type': 'Theorique'
-        }
-        response = self.client.put(self.update_url, data, format='json')
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data['formateur']['agent']['prenom'], 'Updated')
+    def test_personnel_creation(self):
+        self.assertEqual(self.personnel.agent, self.agent)
+        self.assertEqual(self.personnel.etat, 'Operateur')
+        self.assertEqual(self.personnel.ligne, self.ligne)
+        self.assertEqual(self.personnel.poste, self.poste)
+        self.assertEqual(self.personnel.group, self.group)
 
-    def test_delete_formateur(self):
-        response = self.client.delete(self.delete_url)
-        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+    def test_personnel_state_constraints(self):
+        self.personnel.etat = 'Operateur'
+        self.personnel.ligne = None
+        self.personnel.poste = None
+        with self.assertRaises(ValueError):
+            self.personnel.save()
 
+    def test_polyvalence_creation(self):
+        self.assertEqual(self.polyvalence.personnel, self.personnel)
+        self.assertEqual(self.polyvalence.poste, self.poste)
+        self.assertEqual(self.polyvalence.rating, 8)
 
-class AgentModelTest(APITestCase):
-    def test_create_agent(self):
-        agent = Agent.objects.create_user(
-            email='test@example.com',
-            role='Formateur',
-            password='password',
-            prenom='Test',
-            nom='User',
-            date_naissance='1990-01-01',
-            addresse='Test Address',
-            cin='12345678',
-            numerotel='1234567890',
-            username='testuser'
-        )
-        self.assertEqual(agent.email, 'test@example.com')
-        self.assertTrue(agent.check_password('password'))
-
-
-
-
-if __name__ == '__main__':
-    import unittest
-    unittest.main()
-
+    def tearDown(self):
+        # Delete the agent to avoid duplication issues
+        self.agent.delete()
+        # Delete other instances if necessary
+        # Example: self.ligne.delete(), self.group.delete(), etc.

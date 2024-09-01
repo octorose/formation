@@ -1,7 +1,7 @@
 # serializers.py
 from rest_framework import serializers, status
 from rest_framework import serializers
-from .models import Agent, Superviseur, Ligne, Segment, Personnel, Polyvalence, Test, Contrat ,ResponsableEcoleFormation,Formateur ,Test, Contrat ,Poste,ResponsableFormation
+from .models import Agent, Superviseur, Ligne, Segment, Personnel, Polyvalence, Test, Contrat ,ResponsableEcoleFormation,Formateur ,Test, Contrat ,Poste,ResponsableFormation, Group
 from django.contrib.auth import authenticate
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -71,11 +71,13 @@ class AgentSerializer(serializers.ModelSerializer):
         }
 
     def validate(self, data):
-        email = data.get('email')
-        if email:
-            is_valid, message = validate_email(email)
-            if not is_valid:
-                raise serializers.ValidationError({'email': False, 'message': message})
+        # Only validate email during creation (not update)
+        if not self.instance:  # This means the instance doesn't exist, so it's a create operation
+            email = data.get('email')
+            if email:
+                is_valid, message = validate_email(email)
+                if not is_valid:
+                    raise serializers.ValidationError({'email': False, 'message': message})
 
         return data
 
@@ -96,6 +98,15 @@ class AgentSerializer(serializers.ModelSerializer):
                 setattr(instance, attr, value)
         instance.save()
         return instance
+
+
+from rest_framework import serializers
+
+class GroupSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Group
+        fields = ['id', 'name', 'created_at']
+
 class LigneSerializer(serializers.ModelSerializer):
     superviseur_nom = serializers.CharField(source='superviseur.agent.nom', read_only=True)
     superviseur_prenom = serializers.CharField(source='superviseur.agent.prenom', read_only=True)
@@ -111,7 +122,7 @@ class LigneSerializer(serializers.ModelSerializer):
 from django.db import transaction
 
 class SegmentCreateSerializer(serializers.ModelSerializer):
-    agent = AgentSerializer()
+    agent = AgentSerializer()  # Nested serializer to handle agent data
     ligne = serializers.PrimaryKeyRelatedField(queryset=Ligne.objects.all())
 
     class Meta:
@@ -119,14 +130,34 @@ class SegmentCreateSerializer(serializers.ModelSerializer):
         fields = ['id', 'agent', 'ligne']
 
     def create(self, validated_data):
-        segment = Segment.objects.create(**validated_data)
+        agent_data = validated_data.pop('agent')
+        
+        # Use the AgentSerializer to create the agent, ensuring password hashing
+        agent_serializer = AgentSerializer(data=agent_data)
+        if agent_serializer.is_valid():
+            agent = agent_serializer.save()
+        else:
+            raise serializers.ValidationError(agent_serializer.errors)
+        
+        segment = Segment.objects.create(agent=agent, **validated_data)
         return segment
-
     def update(self, instance, validated_data):
-        instance.agent = validated_data.get('agent', instance.agent)
+        # Extract agent data from the validated data
+        agent_data = validated_data.pop('agent', None)
+
+        if agent_data:
+            # Update or create the Agent instance
+            agent, created = Agent.objects.update_or_create(
+                username=agent_data['username'],
+                defaults=agent_data
+            )
+            instance.agent = agent
+
+        # Update the other fields of the Segment instance
         instance.ligne = validated_data.get('ligne', instance.ligne)
         instance.save()
         return instance
+
 class SegmentSerializer(serializers.ModelSerializer):
     agent = AgentSerializer()
     ligne = LigneSerializer()
@@ -196,7 +227,6 @@ class SuperviseurSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         agent_data = validated_data.pop('agent', {})  # Handle optional agent data
 
-        # Update agent instance if data provided
         if agent_data:
             agent_instance = instance.agent
             agent_serializer = AgentSerializer(agent_instance, data=agent_data, partial=True)
@@ -207,7 +237,6 @@ class SuperviseurSerializer(serializers.ModelSerializer):
 
         lignes_ids = validated_data.pop('lignes_ids', [])
 
-        # Update Superviseur instance
         instance.lignes.set(lignes_ids)  # Update many-to-many relation
         return super().update(instance, validated_data)
 
@@ -267,10 +296,11 @@ class PersonnelSerializer(serializers.ModelSerializer):
     agent = AgentSerializer()
     poste = PosteSerializer(required=False, allow_null=True)
     polyvalence = serializers.SerializerMethodField()
+    group = serializers.PrimaryKeyRelatedField(queryset=Group.objects.all(), required=False, allow_null=True)
 
     class Meta:
         model = Personnel
-        fields = ['id', 'agent', 'etat', 'ligne', 'poste', 'polyvalence']
+        fields = ['id', 'agent', 'etat', 'ligne', 'poste', 'polyvalence', 'group']
 
     def get_polyvalence(self, obj):
         try:
@@ -279,11 +309,23 @@ class PersonnelSerializer(serializers.ModelSerializer):
         except Polyvalence.DoesNotExist:
             return None
 
+    def validate(self, data):
+        etat = data.get('etat')
+        group = data.get('group')
+
+        # Ensure group is provided if the etat is 'Candidat'
+        if etat == 'Candidat' and group is None:
+            raise serializers.ValidationError("Group is required when etat is 'Candidat'.")
+
+        return data
+
     def create(self, validated_data):
         agent_data = validated_data.pop('agent')
+        group = validated_data.pop('group', None)  # Extract group from validated_data if present
+
         agent_data['role'] = 'Personnel'
         agent = AgentSerializer.create(AgentSerializer(), validated_data=agent_data)
-        personnel = Personnel.objects.create(agent=agent, **validated_data)
+        personnel = Personnel.objects.create(agent=agent, group=group, **validated_data)
         return personnel
 
     def delete(self, validated_data):
@@ -337,15 +379,22 @@ class FormateurSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Formateur
-        fields = ['id', 'isAffecteur','Type', 'agent']
+        fields = ['id', 'isAffecteur', 'Type', 'agent']
 
     def create(self, validated_data):
         agent_data = validated_data.pop('agent')
         agent_data['role'] = 'Formateur'
-        agent = AgentSerializer.create(AgentSerializer(), validated_data=agent_data)
+        
+        # Create the agent instance using the AgentSerializer's `create` method.
+        agent_serializer = AgentSerializer(data=agent_data)
+        if agent_serializer.is_valid():
+            agent = agent_serializer.save()  # This returns the created Agent instance.
+        else:
+            raise serializers.ValidationError(agent_serializer.errors)
+
+        # Now, create the Formateur instance using the agent object.
         formateur = Formateur.objects.create(agent=agent, **validated_data)
         return formateur
-
 
 class TestSerializer(serializers.ModelSerializer):
      responsables_ecole_formation = ResponsableFormationEcoleSerializer(many=True)
@@ -421,4 +470,11 @@ class PolyvalenceUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Polyvalence
         fields = ['score', 'comments']
+
+from .models import SegDepartement
+
+class SegDepartementSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SegDepartement
+        fields = ['id', 'name', 'segment', 'ligne']
 

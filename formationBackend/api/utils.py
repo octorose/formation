@@ -85,6 +85,8 @@ def send_verification_email(user):
     except Exception as e:
         logging.error(f"Échec de l'envoi de l'e-mail de vérification : {e}")
         return False, str(e)
+    return True, "E-mail de vérification envoyé avec succès"
+
 
 def validate_email_format(email):
     regex = r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$'

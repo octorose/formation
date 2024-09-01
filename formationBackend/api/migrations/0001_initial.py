@@ -107,7 +107,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='Superviseur',
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),   
                 ('agent', models.OneToOneField(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, to=settings.AUTH_USER_MODEL)),
                 ('lignes', models.ManyToManyField(related_name='superviseurs', to='api.ligne')),
             ],
