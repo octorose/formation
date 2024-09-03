@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, AbstractUser
-
+from django.dispatch import receiver
+from django.db.models.signals import post_save, post_delete
 
 class AgentManager(BaseUserManager):
     def create_user(self, email, role, password=None, username=None, **extra_fields):
@@ -34,6 +35,13 @@ class AgentManager(BaseUserManager):
 
         return self.create_user(email, role='Superviseur', password=password, username=username, **extra_fields)
 
+class Group(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+    Effectif = models.IntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.name
 
 class Agent(AbstractUser):
     ROLE_CHOICES = [
@@ -41,14 +49,14 @@ class Agent(AbstractUser):
         ('ResponsableFormation', 'Responsable Formation'),
         ('ResponsableEcoleFormation', 'Responsable Ecole Formation'),
         ('Formateur', 'Formateur'),
+        ('Segment', 'Segment'),  # Added Segment role
         ('Superviseur', 'Superviseur'),
         ('Personnel', 'Personnel'),
     ]
 
-    # Define REQUIRED_FIELDS
     REQUIRED_FIELDS = ['email', 'prenom', 'nom', 'date_naissance', 'addresse', 'cin', 'numerotel', 'role']
 
-    # Define your custom fields
+    email = models.EmailField(unique=True)
     is_email_verified = models.BooleanField(default=False)
     prenom = models.CharField(max_length=100)
     nom = models.CharField(max_length=100)
@@ -57,17 +65,12 @@ class Agent(AbstractUser):
     cin = models.CharField(max_length=20, unique=True)
     numerotel = models.CharField(max_length=20)
     role = models.CharField(max_length=50, choices=ROLE_CHOICES, default='Personnel')
-
-    # Add any additional fields as needed
     temporary_session = models.BooleanField(default=False)
-    # Override username field to make it nullable
     username = models.CharField(max_length=150, unique=True, null=True, blank=True)
     site = models.CharField(max_length=100, blank=True, null=True)
 
     def __str__(self):
         return f"{self.prenom} {self.nom} ({self.role})"
-
-
 class RH(models.Model):
     agent = models.OneToOneField(Agent, on_delete=models.CASCADE, null=True, blank=True)
     department = models.CharField(max_length=100, blank=True, null=True)
@@ -77,23 +80,37 @@ class ResponsableFormation(models.Model):
     agent = models.OneToOneField(Agent, on_delete=models.CASCADE, null=True, blank=True)
     domain = models.CharField(max_length=100, blank=True, null=True)
 
-
 class ResponsableEcoleFormation(models.Model):
     agent = models.OneToOneField(Agent, on_delete=models.CASCADE, null=True, blank=True)
-
-
-class Formateur(models.Model):
-    agent = models.OneToOneField(Agent, on_delete=models.CASCADE, null=True, blank=True)
-    isAffecteur = models.BooleanField(default=False)
-    Type = models.CharField(max_length=100, null=False, blank=False, default="Theorique")
-
-
 class Ligne(models.Model):
     name = models.CharField(max_length=100)
     superviseur = models.ForeignKey('Superviseur', on_delete=models.CASCADE, null=True, blank=True)
 
     def __str__(self):
         return self.name
+
+class Segment(models.Model):
+    agent = models.OneToOneField(Agent, on_delete=models.CASCADE, null=True, blank=True, db_constraint=False)
+    ligne = models.ForeignKey(Ligne, on_delete=models.CASCADE, related_name='segments', null=True, blank=True)
+
+
+class Formateur(models.Model):
+    agent = models.OneToOneField(Agent, on_delete=models.CASCADE, null=True, blank=True)
+    isAffecteur = models.BooleanField(default=False)
+    Type = models.CharField(max_length=100, null=False, blank=False, default="Theorique")
+    segment = models.ForeignKey(Segment, on_delete=models.CASCADE, blank=True, null=True)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                check=(
+                    (models.Q(Type='Pratique') & models.Q(segment__isnull=False)) |
+                    (models.Q(Type__in=['Theorique', 'Other']) & models.Q(segment__isnull=True))
+                ),
+                name='formateur_type_segment_consistency'
+            )
+        ]
+
 
 
 class Superviseur(models.Model):
@@ -104,29 +121,6 @@ class Superviseur(models.Model):
         return f"{self.agent.prenom} {self.agent.nom} (Superviseur)"
 
 
-class Personnel(models.Model):
-    OPERATOR_STATE = 'Operateur'
-    PERSONNEL_STATE = 'Candidat'
-    EN_FORMATION_STATE = 'En Formation'
-    STATE_CHOICES = [
-        (OPERATOR_STATE, 'Operateur'),
-        (PERSONNEL_STATE, 'Candidat'),
-        (EN_FORMATION_STATE, 'En Formation')
-    ]
-
-    agent = models.OneToOneField(Agent, on_delete=models.CASCADE)
-    etat = models.CharField(max_length=100, choices=STATE_CHOICES, default=PERSONNEL_STATE)
-    ligne = models.ForeignKey(Ligne, on_delete=models.CASCADE, null=True, blank=True)
-    poste = models.ForeignKey('Poste', on_delete=models.CASCADE, null=True, blank=True)
-
-
-    def save(self, *args, **kwargs):
-        if self.etat == self.OPERATOR_STATE and not self.ligne and not self.poste:
-            raise ValueError("Ligne and Poste must be set if the etat is Operator.")
-        super().save(*args, **kwargs)
-
-    def __str__(self):
-        return f"{self.agent.prenom} {self.agent.nom} ({self.agent.role})"
 
 class Poste(models.Model):
     TYPE_CHOICES = [
@@ -142,6 +136,32 @@ class Poste(models.Model):
 
     def __str__(self):
         return self.name
+class Personnel(models.Model):
+    OPERATOR_STATE = 'Operateur'
+    PERSONNEL_STATE = 'Candidat'
+    EN_FORMATION_STATE = 'En Formation'
+    STATE_CHOICES = [
+        (OPERATOR_STATE, 'Operateur'),
+        (PERSONNEL_STATE, 'Candidat'),
+        (EN_FORMATION_STATE, 'En Formation')
+    ]
+
+    agent = models.OneToOneField(Agent, on_delete=models.CASCADE)
+    etat = models.CharField(max_length=100, choices=STATE_CHOICES, default=PERSONNEL_STATE)
+    ligne = models.ForeignKey(Ligne, on_delete=models.CASCADE, null=True, blank=True)
+    poste = models.ForeignKey(Poste, on_delete=models.CASCADE, null=True, blank=True)
+    group = models.ForeignKey(Group, on_delete=models.SET_NULL, null=True, blank=True, unique=True)
+
+    def save(self, *args, **kwargs):
+        if self.etat == self.OPERATOR_STATE and not self.ligne and not self.poste:
+            raise ValueError("Ligne and Poste must be set if the etat is Operator.")
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.agent.prenom} {self.agent.nom} ({self.agent.role})"
+
+
+
 class Polyvalence(models.Model):
     supervisor = models.ForeignKey(Superviseur, on_delete=models.CASCADE)
     personnel = models.ForeignKey(Personnel, on_delete=models.CASCADE)
@@ -194,3 +214,11 @@ class Module(models.Model):
 
     def __str__(self):
         return self.name
+
+class SegDepartement(models.Model):
+    name = models.CharField(max_length=100, unique=True) 
+    segment = models.OneToOneField(Segment, on_delete=models.CASCADE)  
+    ligne = models.ForeignKey(Ligne, on_delete=models.CASCADE, related_name='seg_departements')  
+
+    def __str__(self):
+        return self.name  

@@ -1,15 +1,18 @@
 # views.py
 from rest_framework.views import APIView
+from django.http import HttpResponseRedirect
+from django.conf import settings
 from rest_framework.response import Response
+from rest_framework.generics import UpdateAPIView, RetrieveAPIView, DestroyAPIView
 from .models import Poste
 from .serializers import PosteSerializer
 from django.db.models import Count
 from rest_framework import status, generics
-from .serializers import SuperviseurSerializer,PolyvalenceUpdateSerializer,ContratDisplaySerializer, PolyvalenceSerializer,  PersonnelSerializer, RHSerializer, PersonnelCountSerializer, AgentSerializer, ModuleSerializer,ResponsableFormationEcoleSerializer,FormateurSerializer, LigneSerializer,PosteSerializer,PersonnelUpdateEtatSerializer
+from .serializers import SuperviseurSerializer,PolyvalenceUpdateSerializer,GroupSerializer,ContratDisplaySerializer, PolyvalenceSerializer,  PersonnelSerializer, RHSerializer, PersonnelCountSerializer, AgentSerializer, ModuleSerializer,ResponsableFormationEcoleSerializer,FormateurSerializer, LigneSerializer,PosteSerializer,PersonnelUpdateEtatSerializer
 from rest_framework.permissions import AllowAny
 from rest_framework_simplejwt.views import TokenObtainPairView
 from .serializers import CustomTokenObtainPairSerializer
-from .models import Agent, RH, Polyvalence, ResponsableFormation, ResponsableEcoleFormation, Superviseur, Personnel, Ligne,Formateur,Poste
+from .models import Agent, RH, Segment, Polyvalence, ResponsableFormation, ResponsableEcoleFormation, Superviseur, Personnel, Ligne,Formateur,Poste, Group
 from django.contrib.auth.hashers import make_password
 from django.db.models.functions import TruncMonth, Coalesce
 from django.http import JsonResponse
@@ -24,11 +27,13 @@ from django.views import View
 from django.http import HttpResponse
 from django.contrib.auth import get_user_model
 from django.http import HttpResponse
-
+from .utils import send_verification_email,send_password_reset_email
 from .models import Test, Contrat
+from .serializers import TestSerializer, ContratSerializer,SegmentSerializer,SegmentCreateSerializer
 from .serializers import TestSerializer, ContratSerializer
 import logging
 import json
+
 
 class PersonnelSumByEtatView(APIView):
     permission_classes = [AllowAny]
@@ -150,10 +155,8 @@ class VerifyEmailView(APIView):
 
     def get(self, request, uidb64, token):
         try:
-
             uid = force_str(urlsafe_base64_decode(uidb64))
-
-           
+            user = User.objects.get(pk=uid)
         except (TypeError, ValueError, OverflowError, User.DoesNotExist):
             user = None
 
@@ -161,7 +164,7 @@ class VerifyEmailView(APIView):
             # Mark user as verified or activate the user
             user.is_active = True  # Assuming you have an 'is_active' field
             user.save()
-            return HttpResponse('Email verified successfully')
+            return HttpResponseRedirect(f"{settings.FRONT_URL}/SuccessfulVerification")
         else:
             return HttpResponse('Email verification failed')
     
@@ -185,6 +188,15 @@ class CreateSupervisorView(APIView):
         serializer = SuperviseurSerializer(data=request.data)
         if serializer.is_valid():
             superviseur = serializer.save()
+            
+
+            # Send verification email
+            success, message = send_verification_email(superviseur.agent)
+            if not success:
+                return Response({
+                    'status': 'error',
+                    'message': message
+                }, status=status.HTTP_400_BAD_REQUEST)
             return Response({
                 'status': 'success',
                 'message': 'Supervisor created successfully',
@@ -254,31 +266,112 @@ class SuperviseurDeleteView(APIView):
             return Response({'message': 'Supervisor and associated Agent deleted successfully.'}, status=status.HTTP_204_NO_CONTENT)
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
-        
+
+class GroupListCreateView(APIView):
+
+    def get(self, request):
+        groups = Group.objects.all()
+        serializer = GroupSerializer(groups, many=True)
+        return Response(serializer.data)
+
+    def post(self, request):
+        serializer = GroupSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class GroupUpdateView(UpdateAPIView):
+    queryset = Group.objects.all()
+    serializer_class = GroupSerializer
+
+    def put(self, request, pk):
+        group = self.get_object()
+        if not group:
+            return Response({'error': 'Group not found'}, status=status.HTTP_404_NOT_FOUND)
+        serializer = GroupSerializer(group, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+class GroupDeleteView(DestroyAPIView):
+    queryset = Group.objects.all()
+
+    def delete(self, request, pk):
+        group = self.get_object()
+        if not group:
+            return Response({'error': 'Group not found'}, status=status.HTTP_404_NOT_FOUND)
+        group.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+class GroupListCreateView(APIView):
+
+    def get(self, request):
+        groups = Group.objects.all()
+        serializer = GroupSerializer(groups, many=True)
+        return Response(serializer.data)
+
+    def post(self, request):
+        serializer = GroupSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+from rest_framework.generics import CreateAPIView
+from .models import SegDepartement
+from .serializers import SegDepartementSerializer
+class SegDepartementCreateView(CreateAPIView):
+    queryset = SegDepartement.objects.all()
+    serializer_class = SegDepartementSerializer
+
 class CreatePersonnelView(APIView):
+
     def post(self, request):
         data = request.data
         etat = data.get('etat')
         ligne = data.get('ligne')
         poste = data.get('poste')
+        group_id = data.get('group_id')  # Get the group ID from the request data
 
-        if etat not in ['En Formation', 'Candidate', 'Candidat', 'Operateur']:
+        # Validate etat
+        if etat not in ['En Formation', 'Candidat', 'Operateur']:
             return Response({
                 'status': 'error',
-                'message': 'Invalid etat value. Must be "En Formation", "Candidate", or "Operateur".'
+                'message': 'Invalid etat value. Must be "En Formation", "Candidat", or "Operateur".'
             }, status=status.HTTP_400_BAD_REQUEST)
-        
-        serializer = PersonnelSerializer(data=data)
-        if serializer.is_valid():
-            if etat == 'Operateur' and (ligne is None or poste is None):
+
+        # Validate presence of ligne and poste for Operateur
+        if etat == 'Operateur' and (ligne is None or poste is None):
+            return Response({
+                'status': 'error',
+                'message': 'Ligne and Poste are required for Operateur.'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # Handle group only if the etat is 'Candidat'
+        if etat == 'Candidat':
+            if group_id is None:
                 return Response({
                     'status': 'error',
-                    'message': 'Ligne and Poste are required for Operateur.'
+                    'message': 'Group ID is required for Candidat.'
                 }, status=status.HTTP_400_BAD_REQUEST)
-            
+            data['group'] = group_id
+
+        serializer = PersonnelSerializer(data=data)
+        if serializer.is_valid():
             # Save the personnel
             personnel = serializer.save()
-            
+
+            # Send verification email
+            success, message = send_verification_email(personnel.agent)
+            if not success:
+                return Response({
+                    'status': 'error',
+                    'message': message
+                }, status=status.HTTP_400_BAD_REQUEST)
+
             return Response({
                 'status': 'success',
                 'message': 'Personnel created successfully. Please verify your email.',
@@ -288,8 +381,23 @@ class CreatePersonnelView(APIView):
             'status': 'error',
             'message': serializer.errors
         }, status=status.HTTP_400_BAD_REQUEST)
-class DeletePersonnelView(APIView):
+    
+from rest_framework.generics import ListAPIView
+from .models import SegDepartement
+from .serializers import SegDepartementSerializer
 
+class SegDepartementListView(ListAPIView):
+    queryset = SegDepartement.objects.all()
+    serializer_class = SegDepartementSerializer
+
+from rest_framework.generics import RetrieveUpdateAPIView
+class SegDepartementUpdateView(RetrieveUpdateAPIView):
+    queryset = SegDepartement.objects.all()
+    serializer_class = SegDepartementSerializer
+
+class SegDepartementDeleteView(DestroyAPIView):
+    queryset = SegDepartement.objects.all()
+class DeletePersonnelView(APIView):
 
     def delete(self, request, pk, format=None):
         try:
@@ -417,12 +525,21 @@ class PersonnelSearchView(APIView):
             serializer = PersonnelSerializer(personnel, many=True)
             return Response(serializer.data, status=status.HTTP_200_OK)
         return Response({"message": "No query provided"}, status=status.HTTP_400_BAD_REQUEST)
+    
 class CreateRHView(APIView):
     permission_classes = [AllowAny]
     def post(self, request):
         serializer = RHSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
+
+            # Send verification email
+            success, message = send_verification_email(serializer.data['agent'])
+            if not success:
+                return Response({
+                    'status': 'error',
+                    'message': message
+                }, status=status.HTTP_400_BAD_REQUEST)
             return Response({
                 'status': 'success',
                 'message': 'RH created successfully',
@@ -485,6 +602,15 @@ class CreateResponsableFormationEcoleView(APIView):
         serializer = ResponsableFormationEcoleSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
+
+            # Send verification email
+            success, message = send_verification_email(serializer.data['agent'])
+            if not success:
+                return Response({
+                    'status': 'error',
+                    'message': message
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
             return Response({
                 'status': 'success',
                 'message': 'ResponsableFormation created successfully',
@@ -571,11 +697,20 @@ class CreateFormateurView(APIView):
     def post(self, request):
         serializer = FormateurSerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save()
+            formateur = serializer.save()  # This returns the Formateur instance.
+
+            # Send verification email
+            success, message = send_verification_email(formateur.agent)  # Pass the agent instance.
+            if not success:
+                return Response({
+                    'status': 'error',
+                    'message': message
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
             return Response({
                 'status': 'success',
                 'message': 'Formateur created successfully',
-                'formateur_id': serializer.data['id']
+                'formateur_id': formateur.id
             }, status=status.HTTP_201_CREATED)
         return Response({
             'status': 'error',
@@ -647,7 +782,108 @@ class UpdateFormateurView(APIView):
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
+class ListSegmentView(APIView):
+    def get(self, request):
+        segments = Segment.objects.all()
+        paginator = PageNumberPagination()
+        paginator.page_size = 10  # Number of segments per page
+        result_page = paginator.paginate_queryset(segments, request)
+        serializer = SegmentSerializer(result_page, many=True)
+        return paginator.get_paginated_response(serializer.data)
 
+class ListSegmentLineView(APIView):
+    def get(self, request, line_id):
+        line = get_object_or_404(Ligne, pk=line_id)
+        paginator = PageNumberPagination()
+        paginator.page_size = 10  # Number of segments per page
+        result_page = paginator.paginate_queryset(line.segments.all(), request)
+        serializer = SegmentSerializer(result_page, many=True)
+        return paginator.get_paginated_response(serializer.data)
+    
+class CreateSegmentView(APIView):
+    def post(self, request):
+        serializer = SegmentCreateSerializer(data=request.data)
+        if serializer.is_valid():
+            segment = serializer.save()  # Ensure agent is created with hashed password
+
+            # Send verification email
+            success, message = send_verification_email(segment.agent)
+            if not success:
+                return Response({
+                    'status': 'error',
+                    'message': message
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            return Response({
+                'status': 'success',
+                'message': 'Segment created successfully. Please verify your email.',
+                'segment_id': segment.id  # Return segment ID
+            }, status=status.HTTP_201_CREATED)
+
+        return Response({
+            'status': 'error',
+            'message': serializer.errors
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+class SearchSegmentView(APIView):
+    def get(self, request):
+        query = request.query_params.get('query', '')
+        if query:
+            segments = Segment.objects.filter(
+                Q(agent__nom__icontains=query) |
+                Q(agent__prenom__icontains=query) |
+                Q(ligne__name__icontains=query)
+            )
+            serializer = SegmentSerializer(segments, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response({"message": "No query provided"}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class DeleteSegmentView(APIView):
+    def delete(self, request, pk, format=None):
+        try:
+            segment = get_object_or_404(Segment, pk=pk)
+            agent = segment.agent
+            segment.delete()
+            if agent:
+                agent.delete()
+            return Response({'message': 'Segment deleted successfully.'}, status=status.HTTP_204_NO_CONTENT)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class UpdateSegmentView(APIView):
+
+    def put(self, request, pk, format=None):
+        try:
+            segment = get_object_or_404(Segment, pk=pk)
+            agent = segment.agent
+            agent_data = request.data.get('agent', {})
+            segment_data = request.data
+            segment_data.pop('agent', None)  # Remove agent data from segment data
+
+            # Update agent
+            agent_serializer = AgentSerializer(agent, data=agent_data, partial=True)
+            if agent_serializer.is_valid():
+                agent_serializer.save()
+            else:
+                return Response({'agent_errors': agent_serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+            # Update segment
+            segment_serializer = SegmentSerializer(segment, data=segment_data, partial=True)
+            if segment_serializer.is_valid():
+                segment_serializer.save()
+            else:
+                return Response({'segment_errors': segment_serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+            return Response({
+                'segment': segment_serializer.data,
+                'agent': agent_serializer.data
+            }, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    
 class ListTestView(generics.ListAPIView):
 
     queryset = Test.objects.all()
@@ -671,7 +907,6 @@ class CreateTestView(APIView):
         }, status=status.HTTP_400_BAD_REQUEST)
 
 class SearchTestView(APIView):
-
 
     def get(self, request):
         query = request.query_params.get('query', '')
@@ -791,7 +1026,7 @@ class UpdateContratView(APIView):
 class ListAgentView(generics.ListAPIView):
     queryset = Agent.objects.all()
     serializer_class = AgentSerializer
-    
+    pagination_class = None
             
 
 class LigneListView(generics.ListAPIView):
@@ -842,18 +1077,15 @@ class UpdatePosteView(APIView):
         try:
             poste = get_object_or_404(Poste, pk=pk)
             
-            # Assurez-vous que lignes_ids est une liste vide si non fourni
             lignes_data = request.data.get('lignes_ids', [])
 
             poste_serializer = PosteSerializer(poste, data=request.data, partial=True)
             if poste_serializer.is_valid():
                 updated_poste = poste_serializer.save()
 
-                # Effacez les lignes existantes associées au poste
                 poste.lignes.clear()
 
                 for ligne_id in lignes_data:
-                    # Utilisation directe de l'ID pour optimiser la requête
                     ligne, created = Ligne.objects.get_or_create(id=ligne_id)
                     poste.lignes.add(ligne)
 
@@ -951,4 +1183,54 @@ class RatedOperatorsByLineView(APIView):
         
         serializer = PersonnelSerializer(rated_operators, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+class PosteByLineView(APIView):
+    def get(self, request, ligne_id):
+        try:
+            ligne = Ligne.objects.get(id=ligne_id)
+        except Ligne.DoesNotExist:
+            return Response({'error': 'Ligne not found'}, status=status.HTTP_404_NOT_FOUND)
+        
+        postes = Poste.objects.filter(lignes=ligne)
+        serializer = PosteSerializer(postes, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    
 
+class PasswordResetRequestView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        email = request.data.get('email')
+        if not email:
+            return Response({'status': 'error', 'message': 'Email is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            return Response({'status': 'error', 'message': 'User with this email does not exist'}, status=status.HTTP_404_NOT_FOUND)
+
+        success, message = send_password_reset_email(user)
+        if not success:
+            return Response({'status': 'error', 'message': message}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response({'status': 'success', 'message': 'Password reset link sent successfully'}, status=status.HTTP_200_OK)
+
+class PasswordResetConfirmView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request, uidb64, token):
+        try:
+            uid = force_str(urlsafe_base64_decode(uidb64))
+            user = User.objects.get(pk=uid)
+        except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+            return Response({'status': 'error', 'message': 'Invalid token or user ID'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not default_token_generator.check_token(user, token):
+            return Response({'status': 'error', 'message': 'Invalid token'}, status=status.HTTP_400_BAD_REQUEST)
+
+        password = request.data.get('password')
+        if not password:
+            return Response({'status': 'error', 'message': 'Password is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        user.set_password(password)
+        user.save()
+        return Response({'status': 'success', 'message': 'Password reset successfully'}, status=status.HTTP_200_OK)

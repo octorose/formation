@@ -1,10 +1,11 @@
 
 from django.urls import path, include
 from rest_framework_simplejwt.views import  TokenRefreshView
-from api.views import CreateSupervisorView,UpdatePersonnelView, CreateLigneView, PersonnelSearchView, PolyvalenceUpdateView,ModuleCreateView, EnFormationListView, CreatePersonnelView, RegisterView, CustomTokenObtainPairView, CreateRHView, PersonnelListView, PersonnelCountByMonthAPIView, PersonnelSumByEtatView, DeletePersonnelView, ModuleListView, SupervisorListView,SupervisorSearchView,SuperviseurDeleteView,LigneListView,PersonnelOperatorListView, UpdatePersonnelEtatToOperatorView,UpdateSuperviseurView,SupervisorLines,LigneDetailView,LineOperators, PolyvalenceViewSet, UnratedOperatorsByLineView,RatedOperatorsByLineView, Supervisorlisntingnopage
+from api.views import     SegDepartementCreateView, SegDepartementListView, SegDepartementUpdateView,SegDepartementDeleteView, GroupListCreateView, GroupUpdateView, GroupDeleteView, ListSegmentView, ListSegmentLineView, CreateSegmentView, UpdateSegmentView, DeleteSegmentView, SearchSegmentView,CreateSupervisorView,UpdatePersonnelView, CreateLigneView, PersonnelSearchView, PolyvalenceUpdateView,ModuleCreateView, EnFormationListView, CreatePersonnelView, RegisterView, CustomTokenObtainPairView, CreateRHView, PersonnelListView, PersonnelCountByMonthAPIView, PersonnelSumByEtatView, DeletePersonnelView, ModuleListView, SupervisorListView,SupervisorSearchView,SuperviseurDeleteView,LigneListView,PersonnelOperatorListView, UpdatePersonnelEtatToOperatorView,UpdateSuperviseurView,SupervisorLines,LigneDetailView,LineOperators, PolyvalenceViewSet, UnratedOperatorsByLineView,RatedOperatorsByLineView, Supervisorlisntingnopage,PosteByLineView
 from django.conf import settings
 from django.conf.urls.static import static
-from api.views import CreateSupervisorView, CreatePersonnelView, RegisterView, CustomTokenObtainPairView,VerifyEmailView
+from api.views import CreateSupervisorView, CreatePersonnelView, RegisterView, CustomTokenObtainPairView,VerifyEmailView,PasswordResetRequestView,PasswordResetConfirmView
+
 
 
 urlpatterns = [
@@ -34,7 +35,8 @@ urlpatterns = [
     path('api/modules/create/', ModuleCreateView.as_view(), name='module-create'),
 
     path('verify-email/<uidb64>/<token>/', VerifyEmailView.as_view(), name='verify_email'),
-    
+    path('api/password_reset/', PasswordResetRequestView.as_view(), name='password_reset_request'),
+    path('api/password_reset_confirm/<uidb64>/<token>/', PasswordResetConfirmView.as_view(), name='password_reset_confirm'),
 
     path('api/lignes/', LigneListView.as_view(), name='ligne-list'),
     path('api/lignes/create', CreateLigneView.as_view(), name='create-ligne'),
@@ -45,11 +47,30 @@ urlpatterns = [
     path('api/polyvalences/', PolyvalenceViewSet.as_view(), name='polyvalence-create'),
     path('api/polyvalences/<int:pk>/', PolyvalenceUpdateView.as_view(), name='polyvalence-update'),
    
-
+    path('api/posts/<int:ligne_id>/', PosteByLineView.as_view(), name='posts-by-ligne'),
 
     path('api/unrated-operators/<int:ligne_id>/', UnratedOperatorsByLineView.as_view(), name='unrated-operators-by-line'),
     path('api/rated-operators/<int:ligne_id>/', RatedOperatorsByLineView.as_view(), name='rated-operators-by-line'),
     
+
+    path('api/segments/', ListSegmentView.as_view(), name='list_segments'),
+    path('api/segments/<int:pk>/update/', UpdateSegmentView.as_view(), name='update_segment'),
+    path('api/segments/line/<int:line_id>/', ListSegmentLineView.as_view(), name='list_segments_by_line'),
+    path('api/segments/create/', CreateSegmentView.as_view(), name='create_segment'),
+    path('segments/<int:pk>/delete/', DeleteSegmentView.as_view(), name='delete_segment'),
+    path('segments/search/', SearchSegmentView.as_view(), name='search_segment'),
+
+
+
+    path('api/groups/', GroupListCreateView.as_view(), name='group-list-create'),
+    path('api/groups/<int:pk>/update/', GroupUpdateView.as_view(), name='group-update'),
+    path('api/groups/<int:pk>/delete/', GroupDeleteView.as_view(), name='group-delete'),
+
+
+    path('api/segdepartements/', SegDepartementListView.as_view(), name='segdepartement-list'),
+    path('api/segdepartements/create/', SegDepartementCreateView.as_view(), name='segdepartement-create'),
+    path('api/segdepartements/<int:pk>/', SegDepartementUpdateView.as_view(), name='segdepartement-update'),
+    path('api/segdepartements/<int:pk>/delete/', SegDepartementDeleteView.as_view(), name='segdepartement-delete'),
 
 
     path('api/',include('api.urls')),

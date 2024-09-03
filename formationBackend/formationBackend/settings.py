@@ -178,6 +178,7 @@ EMAIL_USE_TLS = True
 EMAIL_HOST_USER = 'allouchhatim@gmail.com'
 EMAIL_HOST_PASSWORD = env('APP_SMTP_SERVE')
 SITE_URL = 'http://localhost:8000'
+FRONT_URL = 'http://localhost:3000'
 
 CORS_ALLOWED_ORIGINS=[
     'http://localhost:3000',
